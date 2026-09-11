@@ -10,6 +10,8 @@ import urllib.parse
 import os
 import mimetypes
 import socket
+import subprocess
+import re
 import threading
 import queue
 import time
@@ -56,16 +58,29 @@ def broadcast_user_event(user_id: int, event_type: str, payload: dict):
 def get_local_ips() -> List[str]:
     """Finds all non-loopback IPv4 addresses of the host machine."""
     ips = set()
+    
+    # 1. Try ifconfig / ip route on Unix
     try:
-        # Connect to a public DNS IP to determine default route interface IP
+        output = subprocess.check_output(['ifconfig'], stderr=subprocess.DEVNULL).decode('utf-8')
+        found = re.findall(r'inet (192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)', output)
+        for ip in found:
+            ips.add(ip)
+    except Exception:
+        pass
+
+    # 2. Try socket connection method
+    try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.5)
         s.connect(("8.8.8.8", 80))
-        ips.add(s.getsockname()[0])
+        ip = s.getsockname()[0]
+        if not ip.startswith("127."):
+            ips.add(ip)
         s.close()
     except Exception:
         pass
     
+    # 3. Try hostname resolution
     try:
         hostname = socket.gethostname()
         for ip in socket.gethostbyname_ex(hostname)[2]:
