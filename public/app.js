@@ -15,6 +15,7 @@
     searchQuery: '',
     networkInfo: null,
     eventSource: null,
+    pollingInterval: null,
     isRegisterMode: false
   };
 
@@ -218,12 +219,16 @@
     }
   }
 
-  // --- Real-time Sync (Server-Sent Events) ---
+  // --- Real-time Sync (SSE + Smart Polling Fallback) ---
 
   function initRealtimeSync() {
     if (state.eventSource) {
       state.eventSource.close();
       state.eventSource = null;
+    }
+    if (state.pollingInterval) {
+      clearInterval(state.pollingInterval);
+      state.pollingInterval = null;
     }
 
     if (!state.token || !state.user) {
@@ -231,28 +236,51 @@
       return;
     }
 
-    updateSyncStatus('connecting');
-    const sseUrl = `/api/events?token=${encodeURIComponent(state.token)}`;
-    const es = new EventSource(sseUrl);
+    updateSyncStatus('connected');
 
-    es.onopen = () => {
-      updateSyncStatus('connected');
-    };
+    // Try EventSource
+    try {
+      const sseUrl = `/api/events?token=${encodeURIComponent(state.token)}`;
+      const es = new EventSource(sseUrl);
 
-    es.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        handleRealtimeEvent(msg);
-      } catch (err) {
-        // Ping or non-JSON message
+      es.onopen = () => {
+        updateSyncStatus('connected');
+      };
+
+      es.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleRealtimeEvent(msg);
+        } catch (err) {}
+      };
+
+      es.onerror = () => {
+        // If SSE fails (e.g. on serverless Vercel), enable smart polling fallback
+        startPollingFallback();
+      };
+
+      state.eventSource = es;
+    } catch (e) {
+      startPollingFallback();
+    }
+
+    // Always keep light background polling every 5s for reliability
+    startPollingFallback();
+  }
+
+  function startPollingFallback() {
+    if (state.pollingInterval) return;
+    state.pollingInterval = setInterval(async () => {
+      if (!state.token || !state.user) return;
+      const res = await apiRequest('/api/snippets');
+      if (res.ok && res.data && res.data.snippets) {
+        const newSnippets = res.data.snippets;
+        if (JSON.stringify(newSnippets) !== JSON.stringify(state.snippets)) {
+          state.snippets = newSnippets;
+          renderSnippets();
+        }
       }
-    };
-
-    es.onerror = () => {
-      updateSyncStatus('reconnecting');
-    };
-
-    state.eventSource = es;
+    }, 4000);
   }
 
   function updateSyncStatus(status) {
@@ -285,7 +313,6 @@
       const idx = state.snippets.findIndex(s => s.id === msg.payload.id);
       if (idx !== -1) {
         state.snippets[idx] = msg.payload;
-        // Re-sort
         state.snippets.sort((a, b) => (b.isPinned - a.isPinned) || (b.updatedAt - a.updatedAt));
         renderSnippets();
       }
@@ -344,6 +371,10 @@
     if (state.eventSource) {
       state.eventSource.close();
       state.eventSource = null;
+    }
+    if (state.pollingInterval) {
+      clearInterval(state.pollingInterval);
+      state.pollingInterval = null;
     }
     updateSyncStatus('disconnected');
 
@@ -678,7 +709,7 @@
         state.snippets.unshift(res.data.snippet);
         renderSnippets();
         closeSnippetModal();
-        showToast('Snippet tersimpan & disinkronkan ke PC Lab! ⚡', 'success');
+        showToast('Snippet tersimpan & disinkronkan! ⚡', 'success');
       } else {
         showToast(res.data?.error || 'Gagal membuat snippet', 'error');
       }
@@ -767,7 +798,6 @@
 
     // Ctrl+V / Cmd+V when not in an input -> Quick Paste Modal
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && !isInputActive && state.user) {
-      // Prompt quick paste
       openSnippetModal();
       navigator.clipboard?.readText?.().then(clipText => {
         if (clipText && clipText.trim()) {

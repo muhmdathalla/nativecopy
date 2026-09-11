@@ -1,6 +1,7 @@
 """
 NativeCopy Database Layer
 Handles SQLite database operations, password security with PBKDF2, sessions, and snippet management.
+Works both locally and on cloud serverless (Vercel, Render, Railway).
 """
 
 import sqlite3
@@ -10,7 +11,11 @@ import os
 import time
 from typing import Optional, Dict, List, Any, Tuple
 
-DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+if os.environ.get("VERCEL") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK):
+    DB_DIR = "/tmp"
+else:
+    DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
 DB_PATH = os.path.join(DB_DIR, "nativecopy.db")
 
 def get_db_connection() -> sqlite3.Connection:
@@ -18,7 +23,6 @@ def get_db_connection() -> sqlite3.Connection:
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=10.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    # Enable WAL mode for high concurrency
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
@@ -64,6 +68,12 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+# Auto-initialize DB on import
+try:
+    init_db()
+except Exception:
+    pass
 
 # ----------------- Password & Auth Utilities -----------------
 
