@@ -210,6 +210,21 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
+        if path == "/api/feedback":
+            data = self.parse_json_body() or {}
+            message = data.get("message", "").strip()
+            if not message:
+                return self.send_json(400, {"error": "Pesan feedback tidak boleh kosong."})
+            
+            user = self.get_authenticated_user()
+            user_id = user["id"] if user else None
+            name = data.get("name", user["username"] if user else "Anonymous")
+            category = data.get("category", "General")
+            rating = int(data.get("rating", 5))
+
+            res = database.create_feedback(user_id, name, category, rating, message)
+            return self.send_json(201, {"message": "Terima kasih atas saran & kritik kamu!", "feedback": res})
+
         if path == "/api/auth/register":
             data = self.parse_json_body()
             if not data or "username" not in data or "password" not in data:

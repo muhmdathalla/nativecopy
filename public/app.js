@@ -1,75 +1,91 @@
 /**
- * NativeCopy Pro v2.0
- * Senior Developer Edition
+ * NativeCopy Enterprise Suite
+ * Advanced Cross-Device Workspace & Productivity Engine
  */
 
 (function () {
   'use strict';
 
-  // --- Multi-Language Dictionary (i18n) ---
+  // --- i18n Dictionaries ---
   const i18n = {
     id: {
-      search: 'Cari',
-      devTools: 'Dev Tools',
+      feedback: 'Saran & Kritik',
       about: 'About',
-      liveSyncActive: 'Live Sync Aktif',
-      heroTitle: 'Cross-Device Developer Clipboard',
-      heroDesc: 'Sinkronisasi kode, token API, SQL query secara instan antar perangkat.',
+      totalSnippets: 'Total Snippets',
+      totalChars: 'Karakter Tersimpan',
+      pinnedCount: 'Disematkan',
+      syncEngine: 'Sync Engine',
+      workspaceTitle: 'Workspace Clipboard Lintas Perangkat',
+      workspaceSubtitle: 'Potongan kode & teks tersinkronisasi otomatis di seluruh komputer dan gadget Anda.',
+      export: 'Export JSON',
       newSnippet: '+ Snippet Baru',
       all: 'Semua',
       emptyTitle: 'Belum Ada Snippet Tersimpan',
-      emptyDesc: 'Salin kode atau catatan di sini, dan buka akun ini di laptop atau PC lab kamu untuk langsung mengambilnya.',
+      emptyDesc: 'Tambahkan potongan kode atau teks di workstation ini, lalu login di workstation lain untuk mengambilnya seketika.',
       createFirst: '+ Buat Snippet Pertama',
-      authTitle: 'NativeCopy Cloud',
-      authSubtitle: 'Masuk dengan akun yang sama di Laptop & PC Lab untuk sinkronisasi otomatis tanpa batas.',
-      loginTab: 'Masuk',
-      registerTab: 'Daftar Baru',
+      authTitle: 'NativeCopy Enterprise',
+      authSubtitle: 'Masuk dengan akun yang sama di seluruh workstation & perangkat Anda untuk sinkronisasi otomatis.',
+      loginTab: 'Masuk (Login)',
+      registerTab: 'Daftar Akun',
       username: 'Username',
       password: 'Password',
-      btnLogin: 'Masuk (Login)',
+      btnLogin: 'Masuk ke Workspace',
       btnRegister: 'Daftar Akun Baru',
-      snippetTitleLabel: 'Judul / Deskripsi',
+      snippetTitleLabel: 'Judul / Keterangan',
       snippetLangLabel: 'Bahasa / Format',
       snippetCodeLabel: 'Isi Kode / Teks',
       pinSnippet: '📌 Sematkan di paling atas (Pin)',
       cancel: 'Batal',
       saveAndSync: 'Simpan & Sync',
-      aboutTitle: 'Tentang NativeCopy Pro',
+      aboutTitle: 'Tentang NativeCopy Enterprise',
       currencyTitle: 'Kurs Mata Uang Live (USD / IDR)',
-      devToolsTitle: 'Developer Utility Toolkit',
+      feedbackTitle: 'Saran & Kritik (Feedback)',
+      feedbackDesc: 'Bantu kami meningkatkan kualitas NativeCopy. Setiap saran, kritik, atau laporan bug sangat kami hargai!',
+      feedbackCategory: 'Kategori',
+      feedbackRating: 'Kepuasan Layanan',
+      feedbackMessage: 'Pesan / Masukan Anda',
+      sendFeedback: 'Kirim Masukan',
       copied: 'Tersalin ke clipboard!',
       copyFailed: 'Gagal menyalin otomatis',
       confirmDelete: 'Hapus snippet ini?'
     },
     en: {
-      search: 'Search',
-      devTools: 'Dev Tools',
+      feedback: 'Feedback',
       about: 'About',
-      liveSyncActive: 'Live Sync Active',
-      heroTitle: 'Cross-Device Developer Clipboard',
-      heroDesc: 'Instant synchronization of code snippets, API tokens & SQL queries across devices.',
+      totalSnippets: 'Total Snippets',
+      totalChars: 'Total Characters',
+      pinnedCount: 'Pinned',
+      syncEngine: 'Sync Engine',
+      workspaceTitle: 'Cross-Device Clipboard Workspace',
+      workspaceSubtitle: 'Code snippets & text automatically synchronized across all your workstations & devices.',
+      export: 'Export JSON',
       newSnippet: '+ New Snippet',
       all: 'All',
       emptyTitle: 'No Snippets Saved Yet',
-      emptyDesc: 'Copy code or notes here, then login on your other device to access them instantly.',
+      emptyDesc: 'Add code snippets or text on this workstation, then sign in on your other devices to access them instantly.',
       createFirst: '+ Create First Snippet',
-      authTitle: 'NativeCopy Cloud',
-      authSubtitle: 'Login with the same account across Laptop & Lab PC for seamless cross-device sync.',
+      authTitle: 'NativeCopy Enterprise',
+      authSubtitle: 'Sign in with the same account across all your workstations & devices for automatic sync.',
       loginTab: 'Sign In',
       registerTab: 'Register',
       username: 'Username',
       password: 'Password',
-      btnLogin: 'Sign In',
-      btnRegister: 'Create Account',
+      btnLogin: 'Sign In to Workspace',
+      btnRegister: 'Create Enterprise Account',
       snippetTitleLabel: 'Title / Description',
       snippetLangLabel: 'Language / Format',
       snippetCodeLabel: 'Code / Text Content',
       pinSnippet: '📌 Pin to top of feed',
       cancel: 'Cancel',
       saveAndSync: 'Save & Sync',
-      aboutTitle: 'About NativeCopy Pro',
+      aboutTitle: 'About NativeCopy Enterprise',
       currencyTitle: 'Live Currency Converter (USD / IDR)',
-      devToolsTitle: 'Developer Utility Toolkit',
+      feedbackTitle: 'Feedback & Inquiries',
+      feedbackDesc: 'Help us improve NativeCopy. Every feedback, bug report, or feature request is appreciated!',
+      feedbackCategory: 'Category',
+      feedbackRating: 'Rating',
+      feedbackMessage: 'Your Message / Feedback',
+      sendFeedback: 'Submit Feedback',
       copied: 'Copied to clipboard!',
       copyFailed: 'Auto-copy failed',
       confirmDelete: 'Delete this snippet?'
@@ -78,6 +94,7 @@
 
   // State
   const state = {
+    theme: localStorage.getItem('nc_theme') || 'obsidian',
     lang: localStorage.getItem('nc_lang') || 'id',
     user: JSON.parse(localStorage.getItem('nc_user') || 'null'),
     token: localStorage.getItem('nc_token') || '',
@@ -94,18 +111,31 @@
   const el = {
     brandBtn: document.getElementById('brandBtn'),
     bgCanvas: document.getElementById('bgCanvas'),
-    btnOpenCommandPalette: document.getElementById('btnOpenCommandPalette'),
-    btnOpenDevTools: document.getElementById('btnOpenDevTools'),
-    btnOpenAbout: document.getElementById('btnOpenAbout'),
+    btnThemeToggle: document.getElementById('btnThemeToggle'),
+    themeNameText: document.getElementById('themeNameText'),
+    themeMenu: document.getElementById('themeMenu'),
     btnLangToggle: document.getElementById('btnLangToggle'),
     langFlag: document.getElementById('langFlag'),
-    langText: document.getElementById('langText'),
-    btnOpenCurrencyModal: document.getElementById('btnOpenCurrencyModal'),
+    langLabel: document.getElementById('langLabel'),
+    btnOpenFeedback: document.getElementById('btnOpenFeedback'),
+    btnOpenAbout: document.getElementById('btnOpenAbout'),
+    btnOpenCurrency: document.getElementById('btnOpenCurrency'),
     tickerRate: document.getElementById('tickerRate'),
-    navUserSlot: document.getElementById('navUserSlot'),
+    navAuthSlot: document.getElementById('navAuthSlot'),
+    // Clocks
+    clockJKT: document.getElementById('clockJKT'),
+    clockNYC: document.getElementById('clockNYC'),
+    clockIST: document.getElementById('clockIST'),
+    clockMED: document.getElementById('clockMED'),
+    // Stats
+    statCount: document.getElementById('statCount'),
+    statChars: document.getElementById('statChars'),
+    statPinned: document.getElementById('statPinned'),
+    // Views
     appView: document.getElementById('appView'),
     authView: document.getElementById('authView'),
     btnNewSnippet: document.getElementById('btnNewSnippet'),
+    btnExportAll: document.getElementById('btnExportAll'),
     filterTabs: document.getElementById('filterTabs'),
     searchInput: document.getElementById('searchInput'),
     snippetsGrid: document.getElementById('snippetsGrid'),
@@ -141,34 +171,26 @@
     modalCurrency: document.getElementById('modalCurrency'),
     btnCloseCurrency: document.getElementById('btnCloseCurrency'),
     calcRateDisplay: document.getElementById('calcRateDisplay'),
-    calcRateTime: document.getElementById('calcRateTime'),
     inputUSD: document.getElementById('inputUSD'),
     inputIDR: document.getElementById('inputIDR'),
-    // Dev Tools Modal
-    modalDevTools: document.getElementById('modalDevTools'),
-    btnCloseDevTools: document.getElementById('btnCloseDevTools'),
-    jsonInput: document.getElementById('jsonInput'),
-    btnBeautifyJSON: document.getElementById('btnBeautifyJSON'),
-    btnMinifyJSON: document.getElementById('btnMinifyJSON'),
-    btnSaveJSONSnippet: document.getElementById('btnSaveJSONSnippet'),
-    base64Input: document.getElementById('base64Input'),
-    btnEncodeB64: document.getElementById('btnEncodeB64'),
-    btnDecodeB64: document.getElementById('btnDecodeB64'),
-    btnSaveB64Snippet: document.getElementById('btnSaveB64Snippet'),
-    hashInput: document.getElementById('hashInput'),
-    hashOutput: document.getElementById('hashOutput'),
-    btnGenerateHash: document.getElementById('btnGenerateHash'),
-    btnCopyHash: document.getElementById('btnCopyHash'),
-    // Palette
-    modalPalette: document.getElementById('modalPalette'),
-    paletteSearch: document.getElementById('paletteSearch'),
-    paletteResults: document.getElementById('paletteResults'),
+    // Feedback Modal
+    modalFeedback: document.getElementById('modalFeedback'),
+    btnCloseFeedback: document.getElementById('btnCloseFeedback'),
+    btnCancelFeedback: document.getElementById('btnCancelFeedback'),
+    feedbackForm: document.getElementById('feedbackForm'),
+    fbCategory: document.getElementById('fbCategory'),
+    fbMessage: document.getElementById('fbMessage'),
+    fbRatingVal: document.getElementById('fbRatingVal'),
+    starRating: document.getElementById('starRating'),
+    ratingText: document.getElementById('ratingText'),
+    btnSubmitFeedback: document.getElementById('btnSubmitFeedback'),
     // Toast
     toastContainer: document.getElementById('toastContainer')
   };
 
-  // --- Background Particle Animation ---
-  function initBackgroundCanvas() {
+  // --- Dynamic Particle Background Canvas ---
+  let canvasAnimationId;
+  function initDynamicBackgroundCanvas() {
     const canvas = el.bgCanvas;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -181,15 +203,15 @@
     });
 
     const particles = [];
-    const count = Math.min(width > 768 ? 45 : 20, 60);
+    const count = Math.min(width > 768 ? 45 : 20, 50);
 
     for (let i = 0; i < count; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 1.6 + 0.8
+        vx: (Math.random() - 0.5) * 0.45,
+        vy: (Math.random() - 0.5) * 0.45,
+        r: Math.random() * 1.5 + 0.8
       });
     }
 
@@ -199,18 +221,33 @@
       mouse.y = e.clientY;
     });
 
-    function draw() {
-      ctx.clearRect(0, 0, width, height);
+    function getThemeCanvasColors() {
+      const t = state.theme;
+      if (t === 'matrix') {
+        return { particle: 'rgba(16, 185, 129, 0.4)', line: 'rgba(16, 185, 129, 0.16)', grid: 'rgba(16, 185, 129, 0.04)' };
+      } else if (t === 'nordic') {
+        return { particle: 'rgba(6, 182, 212, 0.4)', line: 'rgba(6, 182, 212, 0.16)', grid: 'rgba(6, 182, 212, 0.04)' };
+      } else if (t === 'amethyst') {
+        return { particle: 'rgba(168, 85, 247, 0.4)', line: 'rgba(168, 85, 247, 0.16)', grid: 'rgba(168, 85, 247, 0.04)' };
+      } else if (t === 'amber') {
+        return { particle: 'rgba(245, 158, 11, 0.4)', line: 'rgba(245, 158, 11, 0.16)', grid: 'rgba(245, 158, 11, 0.04)' };
+      }
+      return { particle: 'rgba(164, 173, 204, 0.25)', line: 'rgba(164, 173, 204, 0.12)', grid: 'rgba(255, 255, 255, 0.025)' };
+    }
 
-      // Draw subtle grid dots
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+      const colors = getThemeCanvasColors();
+
+      // Subtle Grid Dots
+      ctx.fillStyle = colors.grid;
       for (let x = 0; x < width; x += 40) {
         for (let y = 0; y < height; y += 40) {
           ctx.fillRect(x, y, 1, 1);
         }
       }
 
-      // Draw particles
+      // Particles & Connecting Lines
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.x += p.vx;
@@ -223,16 +260,15 @@
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(164, 173, 204, 0.25)';
+        ctx.fillStyle = colors.particle;
         ctx.fill();
 
-        // Connect lines
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist < 120) {
-            ctx.strokeStyle = `rgba(164, 173, 204, ${0.12 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.6;
+          if (dist < 125) {
+            ctx.strokeStyle = colors.line;
+            ctx.lineWidth = 0.65;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
@@ -241,17 +277,61 @@
         }
       }
 
-      requestAnimationFrame(draw);
+      canvasAnimationId = requestAnimationFrame(render);
     }
-    requestAnimationFrame(draw);
+
+    render();
   }
 
-  // --- Internationalization (i18n) ---
+  // --- World Clocks Engine (JKT, NYC, IST, MED) ---
+  function updateWorldClocks() {
+    const now = new Date();
+    const opts = { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+
+    try {
+      el.clockJKT.textContent = new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: 'Asia/Jakarta' }).format(now);
+      el.clockNYC.textContent = new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: 'America/New_York' }).format(now);
+      el.clockIST.textContent = new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: 'Europe/Istanbul' }).format(now);
+      el.clockMED.textContent = new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: 'Asia/Riyadh' }).format(now);
+    } catch (e) {
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const fmt = (offset) => new Date(utc + (3600000 * offset)).toTimeString().split(' ')[0];
+      el.clockJKT.textContent = fmt(7);
+      el.clockNYC.textContent = fmt(-4);
+      el.clockIST.textContent = fmt(3);
+      el.clockMED.textContent = fmt(3);
+    }
+  }
+
+  // --- Theme Switcher ---
+  function setTheme(themeName) {
+    state.theme = themeName;
+    localStorage.setItem('nc_theme', themeName);
+    document.documentElement.setAttribute('data-theme', themeName);
+    document.body.className = `theme-${themeName}`;
+
+    const names = {
+      obsidian: 'Obsidian',
+      matrix: 'Cyber Matrix',
+      nordic: 'Nordic Cyan',
+      amethyst: 'Royal Amethyst',
+      amber: 'Solar Amber'
+    };
+    el.themeNameText.textContent = names[themeName] || 'Theme';
+
+    document.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.classList.toggle('active', opt.getAttribute('data-theme') === themeName);
+    });
+
+    el.themeMenu.classList.add('hidden');
+  }
+
+  // --- i18n Translation ---
   function setLanguage(lang) {
     state.lang = lang;
     localStorage.setItem('nc_lang', lang);
     el.langFlag.textContent = lang === 'id' ? '🇮🇩' : '🇬🇧';
-    el.langText.textContent = lang.toUpperCase();
+    el.langLabel.textContent = lang.toUpperCase();
 
     const dict = i18n[lang] || i18n.id;
     document.querySelectorAll('[data-i18n]').forEach((node) => {
@@ -278,7 +358,7 @@
       const res = await fetch('https://open.er-api.com/v6/latest/USD');
       if (res.ok) {
         const data = await res.json();
-        if (data && data.rates && data.rates.IDR) {
+        if (data?.rates?.IDR) {
           state.usdRate = data.rates.IDR;
         }
       }
@@ -307,7 +387,7 @@
   // --- Toast Manager ---
   function showToast(message, type = 'normal', duration = 2400) {
     const toast = document.createElement('div');
-    toast.className = `toast-msg ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : ''}`;
+    toast.className = `toast-item ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : ''}`;
     toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
     el.toastContainer.appendChild(toast);
 
@@ -403,7 +483,7 @@
       el.authView.classList.add('hidden');
       el.appView.classList.remove('hidden');
 
-      el.navUserSlot.innerHTML = `
+      el.navAuthSlot.innerHTML = `
         <div class="user-tag">
           <span>${escapeHtml(state.user.username)}</span>
           <button class="btn-signout" id="btnLogout" title="Keluar">
@@ -422,7 +502,7 @@
     } else {
       el.appView.classList.add('hidden');
       el.authView.classList.remove('hidden');
-      el.navUserSlot.innerHTML = '';
+      el.navAuthSlot.innerHTML = '';
       stopSync();
     }
   }
@@ -555,8 +635,13 @@
       return true;
     });
 
+    // Update stats
     el.countAll.textContent = state.snippets.length;
     el.countPinned.textContent = state.snippets.filter(s => s.isPinned).length;
+    el.statCount.textContent = state.snippets.length;
+    el.statPinned.textContent = state.snippets.filter(s => s.isPinned).length;
+    const totalChars = state.snippets.reduce((acc, curr) => acc + (curr.content ? curr.content.length : 0), 0);
+    el.statChars.textContent = new Intl.NumberFormat('id-ID').format(totalChars);
 
     if (list.length === 0) {
       el.snippetsGrid.innerHTML = '';
@@ -613,14 +698,13 @@
       </div>
     `).join('');
 
-    // Highlight.js
     if (window.hljs) {
       el.snippetsGrid.querySelectorAll('pre code').forEach(block => {
         try { window.hljs.highlightElement(block); } catch (e) {}
       });
     }
 
-    // Attach card actions
+    // Attach card action listeners
     el.snippetsGrid.querySelectorAll('.btn-copy').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = parseInt(btn.getAttribute('data-id'), 10);
@@ -738,168 +822,124 @@
     }
   }
 
-  // --- Developer Tools Utilities ---
-  function initDevTools() {
-    // Tabs
-    document.querySelectorAll('.dev-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.dev-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tool-pane').forEach(p => p.classList.add('hidden'));
-        tab.classList.add('active');
-        const tool = tab.getAttribute('data-tool');
-        if (tool === 'json') document.getElementById('toolJSON').classList.remove('hidden');
-        if (tool === 'base64') document.getElementById('toolBase64').classList.remove('hidden');
-        if (tool === 'hash') document.getElementById('toolHash').classList.remove('hidden');
-      });
-    });
-
-    // JSON Beautify & Minify
-    el.btnBeautifyJSON.addEventListener('click', () => {
-      try {
-        const parsed = JSON.parse(el.jsonInput.value);
-        el.jsonInput.value = JSON.stringify(parsed, null, 2);
-        showToast('JSON formatted!', 'success');
-      } catch (e) {
-        showToast('Invalid JSON string', 'error');
-      }
-    });
-
-    el.btnMinifyJSON.addEventListener('click', () => {
-      try {
-        const parsed = JSON.parse(el.jsonInput.value);
-        el.jsonInput.value = JSON.stringify(parsed);
-        showToast('JSON minified!', 'success');
-      } catch (e) {
-        showToast('Invalid JSON string', 'error');
-      }
-    });
-
-    el.btnSaveJSONSnippet.addEventListener('click', () => {
-      if (el.jsonInput.value.trim()) {
-        el.modalDevTools.classList.add('hidden');
-        openSnippetModal({
-          title: 'JSON Data',
-          language: 'json',
-          content: el.jsonInput.value,
-          isPinned: false
-        });
-      }
-    });
-
-    // Base64
-    el.btnEncodeB64.addEventListener('click', () => {
-      try {
-        el.base64Input.value = btoa(unescape(encodeURIComponent(el.base64Input.value)));
-        showToast('Base64 Encoded!', 'success');
-      } catch (e) {
-        showToast('Encode error', 'error');
-      }
-    });
-
-    el.btnDecodeB64.addEventListener('click', () => {
-      try {
-        el.base64Input.value = decodeURIComponent(escape(atob(el.base64Input.value)));
-        showToast('Base64 Decoded!', 'success');
-      } catch (e) {
-        showToast('Invalid Base64 string', 'error');
-      }
-    });
-
-    el.btnSaveB64Snippet.addEventListener('click', () => {
-      if (el.base64Input.value.trim()) {
-        el.modalDevTools.classList.add('hidden');
-        openSnippetModal({
-          title: 'Base64 Snippet',
-          language: 'plaintext',
-          content: el.base64Input.value,
-          isPinned: false
-        });
-      }
-    });
-
-    // SHA-256 Hash
-    el.btnGenerateHash.addEventListener('click', async () => {
-      const txt = el.hashInput.value;
-      if (!txt) return;
-      const msgBuffer = new TextEncoder().encode(txt);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      el.hashOutput.value = hashHex;
-      showToast('SHA-256 Generated!', 'success');
-    });
-
-    el.btnCopyHash.addEventListener('click', () => {
-      if (el.hashOutput.value) copyToClipboard(el.hashOutput.value, el.btnCopyHash);
-    });
-  }
-
-  // --- Command Palette ---
-  function openCommandPalette() {
-    el.modalPalette.classList.remove('hidden');
-    el.paletteSearch.value = '';
-    renderPaletteResults('');
-    setTimeout(() => el.paletteSearch.focus(), 50);
-  }
-
-  function closeCommandPalette() {
-    el.modalPalette.classList.add('hidden');
-  }
-
-  function renderPaletteResults(query) {
-    const q = query.toLowerCase().trim();
-    const actions = [
-      { title: '+ Buat Snippet Baru (New)', action: () => { closeCommandPalette(); openSnippetModal(); } },
-      { title: '💱 Buka Kurs USD / IDR Live', action: () => { closeCommandPalette(); el.modalCurrency.classList.remove('hidden'); } },
-      { title: '🛠️ Buka Developer Utility Tools', action: () => { closeCommandPalette(); el.modalDevTools.classList.remove('hidden'); } },
-      { title: 'ℹ️ Tentang NativeCopy Pro', action: () => { closeCommandPalette(); el.modalAbout.classList.remove('hidden'); } },
-      { title: '🌐 Ganti Bahasa (Switch ID / EN)', action: () => { toggleLanguage(); closeCommandPalette(); } }
-    ];
-
-    const matchingActions = actions.filter(a => a.title.toLowerCase().includes(q));
-    const matchingSnippets = state.snippets.filter(s => s.title.toLowerCase().includes(q) || s.content.toLowerCase().includes(q)).slice(0, 5);
-
-    let html = '';
-    matchingActions.forEach(a => {
-      html += `<div class="palette-item action-item" data-type="action"><div class="palette-item-left">⚡ <strong>${escapeHtml(a.title)}</strong></div><span class="badge-lang">Action</span></div>`;
-    });
-
-    matchingSnippets.forEach(s => {
-      html += `<div class="palette-item snippet-item" data-id="${s.id}"><div class="palette-item-left">📄 <span>${escapeHtml(s.title)}</span></div><span class="badge-lang">${escapeHtml(s.language)}</span></div>`;
-    });
-
-    if (!html) {
-      html = `<div style="padding: 14px; text-align: center; font-size: 13px; color: #545b73;">Tidak ada hasil ditemukan</div>`;
+  // --- Export All Snippets as JSON ---
+  function exportSnippetsJSON() {
+    if (state.snippets.length === 0) {
+      showToast('Belum ada snippet untuk diexport', 'error');
+      return;
     }
-
-    el.paletteResults.innerHTML = html;
-
-    // Attach clicks
-    el.paletteResults.querySelectorAll('.action-item').forEach((item, idx) => {
-      item.addEventListener('click', () => {
-        matchingActions[idx].action();
-      });
-    });
-
-    el.paletteResults.querySelectorAll('.snippet-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const id = parseInt(item.getAttribute('data-id'), 10);
-        const snip = state.snippets.find(s => s.id === id);
-        if (snip) {
-          closeCommandPalette();
-          openSnippetModal(snip);
-        }
-      });
-    });
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state.snippets, null, 2));
+    const a = document.createElement('a');
+    a.setAttribute('href', dataStr);
+    a.setAttribute('download', `nativecopy_backup_${Date.now()}.json`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast('Export JSON berhasil diunduh!', 'success');
   }
 
-  function toggleLanguage() {
-    setLanguage(state.lang === 'id' ? 'en' : 'id');
+  // --- Feedback (Saran & Kritik) Engine ---
+  function setupFeedbackSystem() {
+    // Star rating
+    const stars = el.starRating.querySelectorAll('.star');
+    const ratingLabels = ['1 / 5 - Sangat Kurang', '2 / 5 - Perlu Peningkatan', '3 / 5 - Cukup', '4 / 5 - Puas', '5 / 5 - Sangat Puas'];
+
+    stars.forEach(star => {
+      star.addEventListener('click', () => {
+        const val = parseInt(star.getAttribute('data-val'), 10);
+        el.fbRatingVal.value = val;
+        el.ratingText.textContent = ratingLabels[val - 1];
+        stars.forEach(s => {
+          const sVal = parseInt(s.getAttribute('data-val'), 10);
+          s.classList.toggle('active', sVal <= val);
+        });
+      });
+    });
+
+    el.feedbackForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = el.fbMessage.value.trim();
+      const category = el.fbCategory.value;
+      const rating = parseInt(el.fbRatingVal.value, 10);
+
+      if (!message) return;
+
+      el.btnSubmitFeedback.disabled = true;
+      el.btnSubmitFeedback.textContent = 'Mengirim...';
+
+      const res = await api('/api/feedback', {
+        method: 'POST',
+        body: JSON.stringify({ message, category, rating })
+      });
+
+      el.btnSubmitFeedback.disabled = false;
+      el.btnSubmitFeedback.textContent = i18n[state.lang].sendFeedback;
+
+      if (res.ok) {
+        el.modalFeedback.classList.add('hidden');
+        el.fbMessage.value = '';
+        showToast('Terima kasih atas saran & kritik kamu! 🌟', 'success');
+      } else {
+        showToast(res.data?.error || 'Gagal mengirim saran', 'error');
+      }
+    });
   }
 
   // --- Setup Listeners ---
   function setupEventListeners() {
-    // Auth Tabs
+    // Clocks timer
+    updateWorldClocks();
+    setInterval(updateWorldClocks, 1000);
+
+    // Theme Selector
+    el.btnThemeToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.themeMenu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        setTheme(opt.getAttribute('data-theme'));
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!el.themeMenu.contains(e.target) && e.target !== el.btnThemeToggle) {
+        el.themeMenu.classList.add('hidden');
+      }
+    });
+
+    // Language Toggle
+    el.btnLangToggle.addEventListener('click', () => {
+      setLanguage(state.lang === 'id' ? 'en' : 'id');
+    });
+
+    // Currency Modal
+    el.btnOpenCurrency.addEventListener('click', () => el.modalCurrency.classList.remove('hidden'));
+    el.btnCloseCurrency.addEventListener('click', () => el.modalCurrency.classList.add('hidden'));
+    el.inputUSD.addEventListener('input', () => updateCurrencyCalc(true));
+    el.inputIDR.addEventListener('input', () => updateCurrencyCalc(false));
+
+    document.querySelectorAll('.preset-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        el.inputUSD.value = pill.getAttribute('data-usd');
+        updateCurrencyCalc(true);
+      });
+    });
+
+    // Feedback Modal
+    el.btnOpenFeedback.addEventListener('click', () => el.modalFeedback.classList.remove('hidden'));
+    el.btnCloseFeedback.addEventListener('click', () => el.modalFeedback.classList.add('hidden'));
+    el.btnCancelFeedback.addEventListener('click', () => el.modalFeedback.classList.add('hidden'));
+
+    // About Modal
+    el.btnOpenAbout.addEventListener('click', () => el.modalAbout.classList.remove('hidden'));
+    el.btnCloseAbout.addEventListener('click', () => el.modalAbout.classList.add('hidden'));
+
+    // Export JSON
+    el.btnExportAll.addEventListener('click', exportSnippetsJSON);
+
+    // Auth Form Tabs
     el.tabLogin.addEventListener('click', () => {
       state.isRegisterMode = false;
       el.tabLogin.classList.add('active');
@@ -941,58 +981,19 @@
     el.btnCancelSnippet.addEventListener('click', closeSnippetModal);
     el.snippetForm.addEventListener('submit', handleSnippetSubmit);
 
-    // Currency
-    el.btnOpenCurrencyModal.addEventListener('click', () => {
-      el.modalCurrency.classList.remove('hidden');
-    });
-    el.btnCloseCurrency.addEventListener('click', () => el.modalCurrency.classList.add('hidden'));
-
-    el.inputUSD.addEventListener('input', () => updateCurrencyCalc(true));
-    el.inputIDR.addEventListener('input', () => updateCurrencyCalc(false));
-
-    document.querySelectorAll('.tag-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        el.inputUSD.value = btn.getAttribute('data-usd');
-        updateCurrencyCalc(true);
-      });
-    });
-
-    // Dev Tools
-    el.btnOpenDevTools.addEventListener('click', () => {
-      el.modalDevTools.classList.remove('hidden');
-    });
-    el.btnCloseDevTools.addEventListener('click', () => el.modalDevTools.classList.add('hidden'));
-
-    // About
-    el.btnOpenAbout.addEventListener('click', () => {
-      el.modalAbout.classList.remove('hidden');
-    });
-    el.btnCloseAbout.addEventListener('click', () => el.modalAbout.classList.add('hidden'));
-
-    // Language Toggle
-    el.btnLangToggle.addEventListener('click', toggleLanguage);
-
-    // Command Palette
-    el.btnOpenCommandPalette.addEventListener('click', openCommandPalette);
-    el.paletteSearch.addEventListener('input', (e) => renderPaletteResults(e.target.value));
-
-    // Global keyboard shortcuts
+    // Escape closes all modals
     document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        openCommandPalette();
-      }
       if (e.key === 'Escape') {
         closeSnippetModal();
-        closeCommandPalette();
         el.modalCurrency.classList.add('hidden');
-        el.modalDevTools.classList.add('hidden');
+        el.modalFeedback.classList.add('hidden');
         el.modalAbout.classList.add('hidden');
+        el.themeMenu.classList.add('hidden');
       }
     });
 
-    // Close on backdrop click
-    [el.modalSnippet, el.modalCurrency, el.modalDevTools, el.modalAbout, el.modalPalette].forEach(m => {
+    // Backdrop click closes modal
+    [el.modalSnippet, el.modalCurrency, el.modalFeedback, el.modalAbout].forEach(m => {
       m.addEventListener('click', (e) => {
         if (e.target === m) m.classList.add('hidden');
       });
@@ -1000,10 +1001,11 @@
   }
 
   // --- Initialize App ---
-  initBackgroundCanvas();
-  setupEventListeners();
-  initDevTools();
+  setTheme(state.theme);
   setLanguage(state.lang);
+  initDynamicBackgroundCanvas();
+  setupFeedbackSystem();
+  setupEventListeners();
   fetchLiveCurrencyRate();
   updateAuthUI();
 

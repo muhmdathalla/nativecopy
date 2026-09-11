@@ -1,6 +1,6 @@
 """
 NativeCopy Database & Auth Layer
-Robust, stateless HMAC-SHA256 token verification for 100% session stability across serverless (Vercel) and local servers.
+Enterprise-grade, stateless HMAC-SHA256 token verification, feedbacks, and snippets.
 """
 
 import sqlite3
@@ -12,8 +12,7 @@ import os
 import time
 from typing import Optional, Dict, List, Any, Tuple
 
-# Secret key for signing stateless authentication tokens
-SECRET_KEY = os.environ.get("NATIVECOPY_SECRET", "nativecopy-super-stable-secret-key-2026").encode("utf-8")
+SECRET_KEY = os.environ.get("NATIVECOPY_SECRET", "nativecopy-enterprise-secret-key-2026").encode("utf-8")
 
 if os.environ.get("VERCEL") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK):
     DB_DIR = "/tmp"
@@ -54,6 +53,16 @@ def init_db():
         updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS feedbacks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT,
+        category TEXT NOT NULL,
+        rating INTEGER NOT NULL DEFAULT 5,
+        message TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_snippets_user_id ON snippets(user_id);
     CREATE INDEX IF NOT EXISTS idx_snippets_pinned ON snippets(is_pinned DESC, updated_at DESC);
     """)
@@ -83,7 +92,6 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
     return hmac.compare_digest(pw_hash, stored_hash)
 
 def generate_stateless_token(user_id: int, username: str) -> str:
-    """Generates a tamper-proof HMAC signed token containing user identity (never expires prematurely)."""
     payload = {
         "uid": user_id,
         "u": username,
@@ -95,7 +103,6 @@ def generate_stateless_token(user_id: int, username: str) -> str:
     return f"{payload_b64}.{sig}"
 
 def verify_stateless_token(token: str) -> Optional[Dict[str, Any]]:
-    """Verifies signature of stateless token and extracts user information without session expiry bugs."""
     if not token or "." not in token:
         return None
     try:
@@ -107,7 +114,6 @@ def verify_stateless_token(token: str) -> Optional[Dict[str, Any]]:
         if not hmac.compare_digest(sig, expected_sig):
             return None
         
-        # Add padding back for base64 decode
         rem = len(payload_b64) % 4
         padded = payload_b64 + ('=' * (4 - rem) if rem else '')
         payload_json = base64.urlsafe_b64decode(padded.encode('utf-8')).decode('utf-8')
@@ -118,15 +124,12 @@ def verify_stateless_token(token: str) -> Optional[Dict[str, Any]]:
         if not user_id or not username:
             return None
         
-        # Ensure user exists in current DB instance (helpful on Vercel cold restarts)
         ensure_user_in_instance(user_id, username)
-        
         return {"id": user_id, "username": username}
     except Exception:
         return None
 
 def ensure_user_in_instance(user_id: int, username: str):
-    """Ensures user record exists locally so snippets FK works across ephemeral cloud containers."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -177,10 +180,8 @@ def login_user(username: str, password: str) -> Tuple[bool, str, Optional[str], 
         cursor.execute("SELECT id, username, password_hash, salt FROM users WHERE username = ?", (username,))
         row = cursor.fetchone()
         if not row:
-            # If not in local ephemeral instance, auto-register on valid password to keep cloud seamless
             return False, "Username atau password salah. Pastikan username sudah terdaftar.", None, None
         
-        # If cloud dummy user, update password
         if row["password_hash"] == "cloud_session":
             pw_hash, salt = hash_password(password)
             cursor.execute("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", (pw_hash, salt, row["id"]))
@@ -195,9 +196,6 @@ def login_user(username: str, password: str) -> Tuple[bool, str, Optional[str], 
         return True, "Login berhasil!", token, {"id": row["id"], "username": row["username"]}
     finally:
         conn.close()
-
-def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
-    return verify_stateless_token(token)
 
 # ----------------- Snippets CRUD -----------------
 
@@ -332,5 +330,22 @@ def delete_snippet(snippet_id: int, user_id: int) -> bool:
         deleted = cursor.rowcount > 0
         conn.commit()
         return deleted
+    finally:
+        conn.close()
+
+# ----------------- Feedbacks -----------------
+
+def create_feedback(user_id: Optional[int], name: str, category: str, rating: int, message: str) -> Dict[str, Any]:
+    now = int(time.time())
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO feedbacks (user_id, name, category, rating, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, name.strip() or "Anonymous", category, rating, message.strip(), now)
+        )
+        fb_id = cursor.lastrowid
+        conn.commit()
+        return {"id": fb_id, "success": True}
     finally:
         conn.close()
