@@ -1,6 +1,5 @@
 """
-NativeCopy HTTP & Real-Time Sync Server
-Multi-threaded server with SSE (Server-Sent Events), SQLite3 database, and Developer-Centric Web UI.
+NativeCopy HTTP Server & Real-Time Sync
 """
 
 import http.server
@@ -23,12 +22,10 @@ PORT = 8080
 HOST = "0.0.0.0"
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
 
-# User ID -> Set of queue.Queue for active SSE connections
 connected_clients: Dict[int, Set[queue.Queue]] = {}
 clients_lock = threading.Lock()
 
 def register_sse_client(user_id: int) -> queue.Queue:
-    """Registers a new SSE client queue for a user."""
     q = queue.Queue(maxsize=50)
     with clients_lock:
         if user_id not in connected_clients:
@@ -37,7 +34,6 @@ def register_sse_client(user_id: int) -> queue.Queue:
     return q
 
 def unregister_sse_client(user_id: int, q: queue.Queue):
-    """Removes an SSE client queue."""
     with clients_lock:
         if user_id in connected_clients:
             connected_clients[user_id].discard(q)
@@ -45,7 +41,6 @@ def unregister_sse_client(user_id: int, q: queue.Queue):
                 del connected_clients[user_id]
 
 def broadcast_user_event(user_id: int, event_type: str, payload: dict):
-    """Broadcasts a real-time event to all active devices of a user."""
     message = json.dumps({"type": event_type, "payload": payload, "timestamp": int(time.time())})
     with clients_lock:
         queues = list(connected_clients.get(user_id, []))
@@ -56,10 +51,7 @@ def broadcast_user_event(user_id: int, event_type: str, payload: dict):
             pass
 
 def get_local_ips() -> List[str]:
-    """Finds all non-loopback IPv4 addresses of the host machine."""
     ips = set()
-    
-    # 1. Try ifconfig / ip route on Unix
     try:
         output = subprocess.check_output(['ifconfig'], stderr=subprocess.DEVNULL).decode('utf-8')
         found = re.findall(r'inet (192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)', output)
@@ -68,7 +60,6 @@ def get_local_ips() -> List[str]:
     except Exception:
         pass
 
-    # 2. Try socket connection method
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.5)
@@ -80,15 +71,6 @@ def get_local_ips() -> List[str]:
     except Exception:
         pass
     
-    # 3. Try hostname resolution
-    try:
-        hostname = socket.gethostname()
-        for ip in socket.gethostbyname_ex(hostname)[2]:
-            if not ip.startswith("127."):
-                ips.add(ip)
-    except Exception:
-        pass
-
     if not ips:
         ips.add("127.0.0.1")
     return sorted(list(ips))
@@ -101,11 +83,9 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, format, *args):
-        # Clean logging format
-        print(f"[{time.strftime('%H:%M:%S')}] {self.address_string()} - {format % args}")
+        pass
 
     def send_json(self, status_code: int, data: dict, headers: Optional[dict] = None):
-        """Sends a JSON response with proper CORS and content headers."""
         body = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -120,7 +100,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def get_auth_token(self) -> Optional[str]:
-        """Extracts auth token from Authorization header or Cookie."""
         auth_header = self.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             return auth_header[7:].strip()
@@ -132,7 +111,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 if c.startswith("session_token="):
                     return c[len("session_token="):].strip()
         
-        # Also support query parameter token for EventSource
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
         if "token" in qs and qs["token"]:
@@ -141,14 +119,12 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         return None
 
     def get_authenticated_user(self) -> Optional[dict]:
-        """Validates current request user."""
         token = self.get_auth_token()
         if not token:
             return None
-        return database.get_user_by_session(token)
+        return database.verify_stateless_token(token)
 
     def parse_json_body(self) -> Optional[dict]:
-        """Parses request body as JSON."""
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length <= 0:
             return {}
@@ -159,7 +135,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             return None
 
     def do_OPTIONS(self):
-        """Handles CORS preflight requests."""
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -172,7 +147,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
 
-        # 1. API: Network Info
         if path == "/api/network-info":
             local_ips = get_local_ips()
             urls = [f"http://{ip}:{PORT}" for ip in local_ips]
@@ -183,14 +157,12 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 "primaryUrl": urls[0] if urls else f"http://localhost:{PORT}"
             })
 
-        # 2. API: Current user info
         if path == "/api/auth/me":
             user = self.get_authenticated_user()
             if not user:
                 return self.send_json(401, {"error": "Unauthorized", "user": None})
             return self.send_json(200, {"user": user})
 
-        # 3. API: Get snippets
         if path == "/api/snippets":
             user = self.get_authenticated_user()
             if not user:
@@ -200,7 +172,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             snippets = database.get_user_snippets(user["id"], search, language)
             return self.send_json(200, {"snippets": snippets})
 
-        # 4. API: Real-Time SSE Stream (/api/events)
         if path == "/api/events":
             user = self.get_authenticated_user()
             if not user:
@@ -215,53 +186,45 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
 
-                # Send initial ping
                 self.wfile.write(b": connected\n\n")
                 self.wfile.flush()
 
                 while True:
                     try:
-                        # Wait for message with heartbeat timeout (15s)
                         msg = client_queue.get(timeout=15.0)
                         data = f"data: {msg}\n\n".encode("utf-8")
                         self.wfile.write(data)
                         self.wfile.flush()
                     except queue.Empty:
-                        # Keep-alive heartbeat
                         self.wfile.write(b": keep-alive\n\n")
                         self.wfile.flush()
-            except (ConnectionResetError, BrokenPipeError, Exception):
+            except Exception:
                 pass
             finally:
                 unregister_sse_client(user["id"], client_queue)
             return
 
-        # 5. Static Files Serving
         self.serve_static_file(path)
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        # 1. API: Register
         if path == "/api/auth/register":
             data = self.parse_json_body()
             if not data or "username" not in data or "password" not in data:
                 return self.send_json(400, {"error": "Username dan password wajib diisi."})
             
-            success, msg, user = database.register_user(data["username"], data["password"])
+            success, msg, user_data, token = database.register_user(data["username"], data["password"])
             if not success:
                 return self.send_json(400, {"error": msg})
             
-            # Automatically login after register
-            _, _, token, user_data = database.login_user(data["username"], data["password"])
             return self.send_json(201, {
                 "message": msg,
                 "token": token,
                 "user": user_data
-            }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=2592000; SameSite=Lax"})
+            }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=31536000; SameSite=Lax"})
 
-        # 2. API: Login
         if path == "/api/auth/login":
             data = self.parse_json_body()
             if not data or "username" not in data or "password" not in data:
@@ -275,23 +238,17 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 "message": msg,
                 "token": token,
                 "user": user
-            }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=2592000; SameSite=Lax"})
+            }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=31536000; SameSite=Lax"})
 
-        # 3. API: Logout
         if path == "/api/auth/logout":
-            token = self.get_auth_token()
-            if token:
-                database.logout_session(token)
             return self.send_json(200, {
                 "message": "Logged out successfully"
             }, headers={"Set-Cookie": "session_token=; Path=/; Max-Age=0"})
 
-        # Authenticated endpoints
         user = self.get_authenticated_user()
         if not user:
             return self.send_json(401, {"error": "Unauthorized"})
 
-        # 4. API: Create Snippet
         if path == "/api/snippets":
             data = self.parse_json_body()
             if not data or "content" not in data or not str(data["content"]).strip():
@@ -309,11 +266,9 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 language=language,
                 is_pinned=is_pinned
             )
-            # Broadcast to other devices
             broadcast_user_event(user["id"], "snippet_created", snippet)
             return self.send_json(201, {"snippet": snippet})
 
-        # 5. API: Toggle Pin (/api/snippets/<id>/pin)
         if path.startswith("/api/snippets/") and path.endswith("/pin"):
             parts = path.strip("/").split("/")
             if len(parts) == 4 and parts[1] == "snippets" and parts[3] == "pin":
@@ -337,7 +292,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        # Update Snippet (/api/snippets/<id>)
         if path.startswith("/api/snippets/"):
             parts = path.strip("/").split("/")
             if len(parts) == 3 and parts[1] == "snippets":
@@ -370,7 +324,6 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        # Delete Snippet (/api/snippets/<id>)
         if path.startswith("/api/snippets/"):
             parts = path.strip("/").split("/")
             if len(parts) == 3 and parts[1] == "snippets":
@@ -388,21 +341,17 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         return self.send_json(404, {"error": "Endpoint not found"})
 
     def serve_static_file(self, req_path: str):
-        """Serves static files safely from the public directory."""
         if req_path == "/" or not req_path:
             req_path = "/index.html"
         
-        # Prevent directory traversal
         clean_path = os.path.normpath(req_path.lstrip("/"))
         file_path = os.path.join(PUBLIC_DIR, clean_path)
 
-        # Ensure file stays within public directory
         if not os.path.abspath(file_path).startswith(os.path.abspath(PUBLIC_DIR)):
             self.send_error(403, "Forbidden")
             return
 
         if not os.path.isfile(file_path):
-            # SPA fallback: if not an API route and file doesn't exist, serve index.html
             file_path = os.path.join(PUBLIC_DIR, "index.html")
             if not os.path.isfile(file_path):
                 self.send_error(404, "File Not Found")
@@ -429,19 +378,17 @@ def run_server(host=HOST, port=PORT):
     server = ThreadingHTTPServer((host, port), NativeCopyHandler)
     ips = get_local_ips()
     
-    print("\n" + "="*60)
-    print(" 🚀 NativeCopy Server is RUNNING!")
-    print("="*60)
-    print(f" • Local Access     : http://localhost:{port}")
+    print("\n" + "="*50)
+    print(" NativeCopy Server Running")
+    print("="*50)
+    print(f" • Local : http://localhost:{port}")
     for ip in ips:
-        print(f" • LAN (Lab PC / HP): http://{ip}:{port}")
-    print("="*60)
-    print(" Tekan Ctrl + C untuk menghentikan server.\n")
+        print(f" • LAN   : http://{ip}:{port}")
+    print("="*50 + "\n")
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n[+] Menghentikan server NativeCopy...")
         server.server_close()
 
 if __name__ == "__main__":
