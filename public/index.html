@@ -1,191 +1,451 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>NativeCopy</title>
+  <title>NativeCopy // Professional Cross-Device Dev Clipboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark-dimmed.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="theme-black">
 
-  <!-- Top Navigation -->
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="brand" id="brandLogo">
-        <div class="brand-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+  <!-- Interactive Background Canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-container">
+      
+      <!-- Brand Logo -->
+      <div class="brand" id="brandBtn">
+        <div class="brand-badge">
+          <svg class="brand-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
         </div>
-        <span class="brand-title">NativeCopy</span>
-      </div>
-
-      <div class="header-right">
-        <!-- Live Status -->
-        <div class="status-indicator" id="statusIndicator">
-          <span class="status-dot"></span>
-          <span class="status-label" id="statusText">Sync On</span>
+        <div class="brand-info">
+          <div class="brand-name">Native<span>Copy</span></div>
+          <div class="brand-tag">v2.0 PRO</div>
         </div>
-
-        <!-- Auth / User Header Area -->
-        <div id="headerAuthArea"></div>
       </div>
-    </div>
-  </header>
 
-  <!-- Main Content -->
-  <main class="main-container">
+      <!-- Live Currency & Rate Widget Ticker -->
+      <div class="currency-ticker" id="btnOpenCurrencyModal" title="Klik untuk konversi mata uang USD / IDR">
+        <span class="currency-icon">💵</span>
+        <span class="currency-label">USD/IDR:</span>
+        <span class="currency-val" id="tickerRate">Rp 16.250</span>
+        <span class="ticker-pulse"></span>
+      </div>
 
-    <!-- Logged-in Dashboard View -->
-    <section id="appView" class="hidden">
-      
-      <!-- Quick Paste / Create Bar -->
-      <div class="action-bar">
-        <div class="search-box">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- Right Header Tools -->
+      <div class="nav-tools">
+        
+        <!-- Command Palette Trigger -->
+        <button class="nav-btn cmd-trigger" id="btnOpenCommandPalette" title="Command Menu (Ctrl + K)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="searchInput" placeholder="Cari snippet..." autocomplete="off">
-        </div>
-        <button id="btnNewSnippet" class="btn btn-primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Snippet Baru</span>
+          <span class="cmd-text" data-i18n="search">Cari</span>
+          <kbd class="kbd-badge">⌘K</kbd>
         </button>
+
+        <!-- Dev Tools Trigger -->
+        <button class="nav-btn" id="btnOpenDevTools" title="Developer Utilities">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+          </svg>
+          <span class="hide-mobile" data-i18n="devTools">Dev Tools</span>
+        </button>
+
+        <!-- About Modal Button -->
+        <button class="nav-btn" id="btnOpenAbout" title="Tentang NativeCopy">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span class="hide-mobile" data-i18n="about">About</span>
+        </button>
+
+        <!-- Language Switcher -->
+        <button class="nav-btn lang-toggle" id="btnLangToggle" title="Ganti Bahasa">
+          <span id="langFlag">🇮🇩</span>
+          <span id="langText">ID</span>
+        </button>
+
+        <!-- User / Auth Header Slot -->
+        <div id="navUserSlot"></div>
+
       </div>
 
-      <!-- Categories Filter -->
-      <div class="filter-scroll" id="filterTabs">
-        <button class="filter-chip active" data-filter="all">Semua (<span id="countAll">0</span>)</button>
-        <button class="filter-chip" data-filter="pinned">📌 Pinned (<span id="countPinned">0</span>)</button>
-        <button class="filter-chip" data-filter="plaintext">Text</button>
-        <button class="filter-chip" data-filter="javascript">JS / TS</button>
-        <button class="filter-chip" data-filter="python">Python</button>
-        <button class="filter-chip" data-filter="bash">Bash / Shell</button>
-        <button class="filter-chip" data-filter="sql">SQL</button>
-        <button class="filter-chip" data-filter="json">JSON</button>
+    </div>
+  </header>
+
+  <!-- Main App Wrapper -->
+  <main class="app-layout">
+    
+    <!-- DASHBOARD VIEW (LOGGED IN) -->
+    <section id="appView" class="hidden">
+      
+      <!-- Action & Quick Paste Hero Banner -->
+      <div class="hero-bar">
+        <div class="hero-left">
+          <div class="live-pill">
+            <span class="live-dot"></span>
+            <span data-i18n="liveSyncActive">Live Sync Active</span>
+          </div>
+          <h1 class="hero-title" data-i18n="heroTitle">Cross-Device Developer Clipboard</h1>
+          <p class="hero-desc" data-i18n="heroDesc">Sinkronisasi kode, token API, SQL query secara instan antar perangkat.</p>
+        </div>
+
+        <div class="hero-actions">
+          <button id="btnNewSnippet" class="btn btn-primary glow-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span data-i18n="newSnippet">+ Snippet Baru</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Snippets Feed -->
-      <div id="snippetsGrid" class="snippets-grid"></div>
+      <!-- Search & Filters Strip -->
+      <div class="toolbar">
+        <div class="filter-chips" id="filterTabs">
+          <button class="chip active" data-filter="all"><span data-i18n="all">Semua</span> (<span id="countAll">0</span>)</button>
+          <button class="chip" data-filter="pinned">📌 Pinned (<span id="countPinned">0</span>)</button>
+          <button class="chip" data-filter="javascript">JavaScript</button>
+          <button class="chip" data-filter="python">Python</button>
+          <button class="chip" data-filter="bash">Bash / Shell</button>
+          <button class="chip" data-filter="sql">SQL</button>
+          <button class="chip" data-filter="json">JSON</button>
+          <button class="chip" data-filter="plaintext">Text</button>
+        </div>
+
+        <div class="toolbar-search">
+          <input type="text" id="searchInput" placeholder="Cari judul atau isi snippet..." autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Snippets Feed Grid -->
+      <div id="snippetsGrid" class="cards-grid"></div>
 
       <!-- Empty State -->
-      <div id="emptyState" class="empty-state hidden">
-        <div class="empty-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-            <line x1="9" y1="9" x2="15" y2="9"></line>
-            <line x1="9" y1="13" x2="15" y2="13"></line>
-            <line x1="9" y1="17" x2="11" y2="17"></line>
+      <div id="emptyState" class="empty-view hidden">
+        <div class="empty-icon-glow">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
         </div>
-        <h3>Belum Ada Snippet</h3>
-        <p>Salin teks atau kode di laptop/HP ini, maka akan langsung muncul di perangkat lain yang login akun sama.</p>
-        <button id="btnEmptyNew" class="btn btn-secondary">+ Tambah Snippet Pertama</button>
+        <h3 data-i18n="emptyTitle">Belum Ada Snippet Tersimpan</h3>
+        <p data-i18n="emptyDesc">Salin kode atau catatan di sini, dan buka akun ini di laptop atau PC lab kamu untuk langsung mengambilnya.</p>
+        <button id="btnEmptyNew" class="btn btn-secondary" data-i18n="createFirst">+ Buat Snippet Pertama</button>
       </div>
 
     </section>
 
-    <!-- Auth View (When Logged Out) -->
-    <section id="authView" class="auth-section">
-      <div class="auth-card">
-        <div class="auth-header">
-          <h2>Masuk ke NativeCopy</h2>
-          <p>Gunakan akun yang sama di Laptop, PC Lab, atau HP agar clipboard otomatis tersinkronisasi.</p>
+    <!-- AUTH VIEW (LOGGED OUT) -->
+    <section id="authView" class="auth-wrapper">
+      <div class="auth-card-pro">
+        <div class="auth-brand-badge">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+        </div>
+        
+        <h2 class="auth-title" data-i18n="authTitle">NativeCopy Cloud</h2>
+        <p class="auth-subtitle" data-i18n="authSubtitle">Masuk dengan akun yang sama di Laptop & PC Lab untuk sinkronisasi otomatis tanpa batas.</p>
+
+        <div class="auth-tab-switch">
+          <button id="tabLogin" class="auth-tab active" data-i18n="loginTab">Masuk</button>
+          <button id="tabRegister" class="auth-tab" data-i18n="registerTab">Daftar Baru</button>
         </div>
 
-        <div class="auth-tabs">
-          <button id="tabLogin" class="tab-btn active">Masuk (Login)</button>
-          <button id="tabRegister" class="tab-btn">Daftar Akun</button>
-        </div>
-
-        <form id="authForm" class="auth-form">
-          <div class="form-group">
-            <label for="authUsername">Username</label>
-            <input type="text" id="authUsername" required placeholder="Contoh: devlab" autocomplete="username">
+        <form id="authForm" class="auth-inputs">
+          <div class="input-wrap">
+            <label data-i18n="username">Username</label>
+            <input type="text" id="authUsername" required placeholder="Contoh: athalla_dev" autocomplete="username">
           </div>
 
-          <div class="form-group">
-            <label for="authPassword">Password</label>
+          <div class="input-wrap">
+            <label data-i18n="password">Password</label>
             <input type="password" id="authPassword" required placeholder="••••••••" autocomplete="current-password">
           </div>
 
-          <div id="authError" class="auth-error hidden"></div>
+          <div id="authError" class="alert-error hidden"></div>
 
-          <button type="submit" id="btnSubmitAuth" class="btn btn-primary btn-block">
-            <span id="authBtnText">Masuk (Login)</span>
+          <button type="submit" id="btnSubmitAuth" class="btn btn-primary btn-block glow-btn">
+            <span id="authBtnText" data-i18n="btnLogin">Masuk (Login)</span>
           </button>
         </form>
+
+        <div class="auth-footer-note">
+          <span>🔒 PBKDF2 Encrypted • Stateless JWT • Zero Lag</span>
+        </div>
       </div>
     </section>
 
   </main>
 
-  <!-- Modal: Create / Edit Snippet -->
-  <div id="modalSnippet" class="modal-backdrop hidden">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3 id="modalTitle">Snippet Baru</h3>
-        <button id="btnCloseSnippetModal" class="icon-btn" aria-label="Tutup">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+  <!-- MODAL: CREATE / EDIT SNIPPET -->
+  <div id="modalSnippet" class="modal-layer hidden">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <div class="status-dot"></div>
+          <h3 id="modalTitle">Buat Snippet Baru</h3>
+        </div>
+        <button id="btnCloseSnippetModal" class="btn-close">&times;</button>
       </div>
 
-      <form id="snippetForm" class="modal-form">
+      <form id="snippetForm" class="modal-body">
         <input type="hidden" id="editSnippetId" value="">
 
-        <div class="form-row">
-          <div class="form-group flex-2">
-            <label for="snippetTitleInput">Judul (Opsional)</label>
-            <input type="text" id="snippetTitleInput" placeholder="Contoh: Query SQL, Token API, Command Build">
+        <div class="form-grid">
+          <div class="input-wrap flex-2">
+            <label data-i18n="snippetTitleLabel">Judul / Deskripsi</label>
+            <input type="text" id="snippetTitleInput" placeholder="Contoh: Migration SQL v2, Docker Compose, Token AWS">
           </div>
-          <div class="form-group flex-1">
-            <label for="snippetLangInput">Format</label>
+          <div class="input-wrap flex-1">
+            <label data-i18n="snippetLangLabel">Bahasa / Format</label>
             <select id="snippetLangInput">
               <option value="plaintext">Plain Text</option>
-              <option value="javascript">JavaScript / TS</option>
+              <option value="javascript">JavaScript / TypeScript</option>
               <option value="python">Python</option>
-              <option value="bash">Bash / Shell</option>
-              <option value="sql">SQL</option>
-              <option value="json">JSON</option>
+              <option value="bash">Bash / Shell Script</option>
+              <option value="sql">SQL Query</option>
+              <option value="json">JSON Data</option>
               <option value="html">HTML</option>
               <option value="css">CSS</option>
+              <option value="php">PHP</option>
+              <option value="cpp">C / C++</option>
+              <option value="go">Golang</option>
+              <option value="markdown">Markdown</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="snippetContentInput">Teks / Kode</label>
-          <textarea id="snippetContentInput" required rows="8" placeholder="Paste teks atau kode di sini..."></textarea>
+        <div class="input-wrap">
+          <div class="textarea-header">
+            <label data-i18n="snippetCodeLabel">Isi Kode / Teks</label>
+            <span class="kbd-hint">Auto-indent (Tab supported)</span>
+          </div>
+          <textarea id="snippetContentInput" required rows="10" placeholder="Paste kode atau teks kamu di sini..."></textarea>
         </div>
 
-        <div class="form-group-checkbox">
+        <div class="checkbox-wrap">
           <label>
             <input type="checkbox" id="snippetPinInput">
-            <span>📌 Sematkan di paling atas (Pin)</span>
+            <span data-i18n="pinSnippet">📌 Sematkan di paling atas (Pin)</span>
           </label>
         </div>
 
-        <div class="modal-actions">
-          <button type="button" id="btnCancelSnippet" class="btn btn-secondary">Batal</button>
-          <button type="submit" class="btn btn-primary" id="btnSaveSnippet">Simpan & Sync</button>
+        <div class="modal-foot">
+          <button type="button" id="btnCancelSnippet" class="btn btn-secondary" data-i18n="cancel">Batal</button>
+          <button type="submit" class="btn btn-primary glow-btn" id="btnSaveSnippet">
+            <span data-i18n="saveAndSync">Simpan & Sync</span>
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
-  <div id="toastContainer" class="toast-container"></div>
+  <!-- MODAL: ABOUT & ARCHITECTURE -->
+  <div id="modalAbout" class="modal-layer hidden">
+    <div class="modal-dialog">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <h3 data-i18n="aboutTitle">Tentang NativeCopy</h3>
+        </div>
+        <button id="btnCloseAbout" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body about-content">
+        <div class="about-hero">
+          <h4>NativeCopy Pro v2.0</h4>
+          <p>Dibuat khusus untuk pengembang, sysadmin, dan programmer yang membutuhkan pemindahan teks, token, dan kode sumber antar komputer/laptop/HP secara instan dan aman.</p>
+        </div>
+
+        <div class="tech-stack-grid">
+          <div class="tech-item">
+            <span class="tech-icon">⚡</span>
+            <div>
+              <strong>Server-Sent Events (SSE)</strong>
+              <p>Push updates instan sub-millisecond antar perangkat.</p>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🛡️</span>
+            <div>
+              <strong>Stateless HMAC-SHA256</strong>
+              <p>Sesi login anti-logout 100% stabil di cloud serverless.</p>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🗄️</span>
+            <div>
+              <strong>SQLite3 High-Concurrency WAL</strong>
+              <p>Penyimpanan persisten zero-config super cepat.</p>
+            </div>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">📱</span>
+            <div>
+              <strong>Ultra Responsive & Mobile Optimized</strong>
+              <p>Desain minimalis hitam modern nyaman di semua ukuran layar.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-foot-note">
+          <p>Created with precision for modern developer productivity.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LIVE CURRENCY CONVERTER (USD / IDR) -->
+  <div id="modalCurrency" class="modal-layer hidden">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <span>💱</span>
+          <h3 data-i18n="currencyTitle">Kurs Mata Uang Live (USD / IDR)</h3>
+        </div>
+        <button id="btnCloseCurrency" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body currency-calc-body">
+        <div class="rate-status-card">
+          <span class="rate-badge">Live Exchange Rate</span>
+          <div class="rate-value" id="calcRateDisplay">1 USD = Rp 16.250,00</div>
+          <span class="rate-time" id="calcRateTime">Diperbarui realtime</span>
+        </div>
+
+        <div class="converter-box">
+          <div class="conv-input-group">
+            <label>USD (Dolar AS)</label>
+            <div class="input-symbol-wrap">
+              <span class="symbol-prefix">$</span>
+              <input type="number" id="inputUSD" value="100" min="0" step="any">
+            </div>
+          </div>
+
+          <div class="conv-arrow">⇅</div>
+
+          <div class="conv-input-group">
+            <label>IDR (Rupiah Indonesia)</label>
+            <div class="input-symbol-wrap">
+              <span class="symbol-prefix">Rp</span>
+              <input type="text" id="inputIDR" value="1.625.000">
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-tags">
+          <span class="tag-title">Quick presets:</span>
+          <button class="tag-btn" data-usd="5">$5</button>
+          <button class="tag-btn" data-usd="20">$20</button>
+          <button class="tag-btn" data-usd="50">$50</button>
+          <button class="tag-btn" data-usd="100">$100</button>
+          <button class="tag-btn" data-usd="500">$500</button>
+          <button class="tag-btn" data-usd="1000">$1K</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DEV TOOLS SUITE -->
+  <div id="modalDevTools" class="modal-layer hidden">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-head">
+        <div class="modal-head-title">
+          <span>🛠️</span>
+          <h3 data-i18n="devToolsTitle">Developer Utility Toolkit</h3>
+        </div>
+        <button id="btnCloseDevTools" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="dev-tabs">
+          <button class="dev-tab active" data-tool="json">JSON Format / Minify</button>
+          <button class="dev-tab" data-tool="base64">Base64 Encode / Decode</button>
+          <button class="dev-tab" data-tool="hash">Hash (SHA-256)</button>
+        </div>
+
+        <div class="dev-tool-content">
+          <!-- JSON Tool -->
+          <div id="toolJSON" class="tool-pane active">
+            <textarea id="jsonInput" rows="6" placeholder='Paste JSON di sini: {"key": "value"}'></textarea>
+            <div class="tool-actions">
+              <button class="btn btn-secondary" id="btnBeautifyJSON">Format / Prettify</button>
+              <button class="btn btn-secondary" id="btnMinifyJSON">Minify JSON</button>
+              <button class="btn btn-primary" id="btnSaveJSONSnippet">+ Simpan ke Snippet</button>
+            </div>
+          </div>
+
+          <!-- Base64 Tool -->
+          <div id="toolBase64" class="tool-pane hidden">
+            <textarea id="base64Input" rows="6" placeholder="Ketik teks atau paste Base64..."></textarea>
+            <div class="tool-actions">
+              <button class="btn btn-secondary" id="btnEncodeB64">Encode Base64</button>
+              <button class="btn btn-secondary" id="btnDecodeB64">Decode Base64</button>
+              <button class="btn btn-primary" id="btnSaveB64Snippet">+ Simpan ke Snippet</button>
+            </div>
+          </div>
+
+          <!-- Hash Tool -->
+          <div id="toolHash" class="tool-pane hidden">
+            <textarea id="hashInput" rows="4" placeholder="Ketik string teks untuk di-hash..."></textarea>
+            <div class="hash-result-wrap">
+              <label>SHA-256 Hash:</label>
+              <input type="text" id="hashOutput" readonly placeholder="Output hash akan muncul di sini">
+            </div>
+            <div class="tool-actions">
+              <button class="btn btn-secondary" id="btnGenerateHash">Generate Hash</button>
+              <button class="btn btn-primary" id="btnCopyHash">Salin Hash</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMAND PALETTE (CMD+K / CTRL+K) -->
+  <div id="modalPalette" class="modal-layer hidden">
+    <div class="palette-box">
+      <div class="palette-input-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="paletteSearch" placeholder="Ketik perintah atau cari snippet..." autofocus>
+        <kbd class="palette-kbd">ESC</kbd>
+      </div>
+
+      <div class="palette-results" id="paletteResults">
+        <!-- Action presets & matching snippets -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-stack"></div>
 
   <script src="app.js"></script>
 </body>
