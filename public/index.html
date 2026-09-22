@@ -16,46 +16,41 @@
   <!-- Dynamic Theme Background Canvas -->
   <canvas id="bgCanvas"></canvas>
 
-  <!-- World Clock Global Bar -->
+  <!-- World Clock Global Bar (Compact Ticker) -->
   <div class="world-clock-strip">
     <div class="strip-container">
-      <div class="strip-badge">
-        <span class="pulse-live"></span>
-        <span>GLOBAL REALTIME</span>
-      </div>
       <div class="clock-items">
-        <div class="clock-box" title="Jakarta (WIB - UTC+7)">
+        <span class="live-dot-mini"></span>
+        <div class="clock-box" title="Jakarta (WIB)">
           <span class="city-name">JKT</span>
-          <span class="city-time" id="clockJKT">--:--:--</span>
+          <span class="city-time" id="clockJKT">--:--</span>
         </div>
         <div class="clock-sep">•</div>
-        <div class="clock-box" title="New York City (EDT - UTC-4)">
+        <div class="clock-box" title="New York City (EDT)">
           <span class="city-name">NYC</span>
-          <span class="city-time" id="clockNYC">--:--:--</span>
+          <span class="city-time" id="clockNYC">--:--</span>
         </div>
         <div class="clock-sep">•</div>
-        <div class="clock-box" title="Istanbul (TRT - UTC+3)">
+        <div class="clock-box" title="Istanbul (TRT)">
           <span class="city-name">IST</span>
-          <span class="city-time" id="clockIST">--:--:--</span>
+          <span class="city-time" id="clockIST">--:--</span>
         </div>
         <div class="clock-sep">•</div>
-        <div class="clock-box" title="Medina (AST - UTC+3)">
+        <div class="clock-box" title="Medina (AST)">
           <span class="city-name">MED</span>
-          <span class="city-time" id="clockMED">--:--:--</span>
+          <span class="city-time" id="clockMED">--:--</span>
         </div>
       </div>
       <div class="strip-right">
-        <!-- Live Currency Ticker -->
-        <div class="currency-pill" id="btnOpenCurrency" title="Klik untuk kalkulator kurs USD / IDR">
+        <div class="currency-pill" id="btnOpenCurrency" title="Kalkulator Kurs USD / IDR">
           <span class="curr-icon">💱</span>
-          <span class="curr-label">USD/IDR:</span>
           <span class="curr-val" id="tickerRate">Rp 16.250</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Primary Navbar -->
+  <!-- Primary Navbar (Optimized for iPhone notch & touch) -->
   <header class="app-nav">
     <div class="nav-wrapper">
       
@@ -69,19 +64,23 @@
         </div>
         <div class="brand-meta">
           <div class="brand-title">Native<span>Copy</span></div>
-          <span class="brand-corp-tag">VS CODE LIVE</span>
         </div>
       </div>
 
-      <!-- Public Accessible Action Bar -->
+      <!-- Header Action Controls -->
       <div class="nav-controls">
         
-        <!-- Theme Selector Dropdown -->
+        <!-- VS Code Sync Button -->
+        <button class="ctrl-btn btn-vscode-pill" id="btnOpenVsCodeSetup" title="VS Code Live Bridge">
+          <span class="bolt-icon">⚡</span>
+          <span class="btn-label-text">VS Code</span>
+        </button>
+
+        <!-- Theme Selector -->
         <div class="theme-dropdown-wrap">
-          <button class="ctrl-btn" id="btnThemeToggle" title="Ganti Tema Warna">
+          <button class="ctrl-btn" id="btnThemeToggle" title="Ganti Tema">
             <span class="theme-preview-dot"></span>
             <span id="themeNameText" class="hide-mobile">Obsidian</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
           <div class="theme-menu hidden" id="themeMenu">
             <button class="theme-opt active" data-theme="obsidian"><span class="opt-dot dot-obsidian"></span> Midnight Obsidian</button>
@@ -92,35 +91,36 @@
           </div>
         </div>
 
-        <!-- Language Switcher -->
-        <button class="ctrl-btn" id="btnLangToggle" title="Ganti Bahasa / Switch Language">
+        <!-- Language Toggle -->
+        <button class="ctrl-btn lang-btn" id="btnLangToggle" title="Ganti Bahasa">
           <span id="langFlag">🇮🇩</span>
-          <span id="langLabel" class="hide-mobile font-mono">ID</span>
+          <span id="langLabel" class="hide-mobile">ID</span>
         </button>
 
-        <!-- VS Code Setup Modal Trigger -->
-        <button class="ctrl-btn" id="btnOpenVsCodeSetup" title="Panduan & Token VS Code Extension">
-          <span style="color: #06b6d4;">⚡</span>
-          <span class="hide-mobile">VS Code Sync</span>
-        </button>
-
-        <!-- Feedback (Saran & Kritik) Button -->
-        <button class="ctrl-btn" id="btnOpenFeedback" title="Saran & Kritik">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span class="hide-mobile" data-i18n="feedback">Saran & Kritik</span>
-        </button>
-
-        <!-- About Modal Button -->
-        <button class="ctrl-btn" id="btnOpenAbout" title="Tentang Enterprise">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-          <span class="hide-mobile" data-i18n="about">About</span>
-        </button>
+        <!-- Mobile More Menu Trigger -->
+        <div class="more-menu-wrap">
+          <button class="ctrl-btn" id="btnOpenMoreMenu" title="Menu Lainnya">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </button>
+          <div class="more-dropdown hidden" id="moreDropdown">
+            <button class="more-item" id="menuItemFeedback">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span>Saran & Kritik</span>
+            </button>
+            <button class="more-item" id="menuItemAbout">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              <span>Tentang NativeCopy</span>
+            </button>
+            <button class="more-item" id="menuItemExport">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Export Data (JSON)</span>
+            </button>
+          </div>
+        </div>
 
         <!-- Auth Slot -->
         <div id="navAuthSlot"></div>
@@ -136,80 +136,71 @@
     <!-- DASHBOARD VIEW (AUTHENTICATED ONLY) -->
     <section id="appView" class="hidden">
       
-      <!-- ⚡ Live Remote Insertion to VS Code Box (Hero Feature) -->
-      <div class="vscode-remote-box">
-        <div class="remote-head">
-          <div class="remote-title">
-            <span class="pulse-live"></span>
-            <strong>⚡ Live Remote Insert to VS Code Cursor</strong>
+      <!-- ⚡ Live Remote Insertion to VS Code (Mobile First Hero) -->
+      <div class="vscode-remote-card">
+        <div class="remote-header">
+          <div class="remote-badge">
+            <span class="live-dot-pulse"></span>
+            <span>LIVE TO VS CODE</span>
           </div>
-          <span class="remote-sub">Ketik/paste di HP, otomatis tertulis di file VS Code yang sedang aktif!</span>
+          <span class="remote-hint hide-mobile">Ketik di sini, otomatis tertulis di file VS Code aktif</span>
         </div>
-        <div class="remote-body">
-          <textarea id="remoteVsCodeInput" rows="2" placeholder="Paste / ketik kode di sini dari HP untuk langsung menyisipkannya ke kursor VS Code..."></textarea>
-          <div class="remote-actions">
-            <button id="btnSendToVsCode" class="btn btn-primary glow-accent">
-              <span>⚡ Kirim Langsung ke Kursor VS Code</span>
+        
+        <div class="remote-input-container">
+          <textarea id="remoteVsCodeInput" rows="2" placeholder="Paste / ketik kode di HP Anda untuk kirim ke kursor VS Code..."></textarea>
+          <div class="remote-footer">
+            <span class="char-count-text" id="remoteCharCount">0 chars</span>
+            <button id="btnSendToVsCode" class="btn btn-primary btn-send-remote glow-accent">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Kirim ke VS Code</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Stats / Productivity Bar -->
-      <div class="stats-overview">
-        <div class="stat-card">
-          <span class="stat-label" data-i18n="totalSnippets">Total Snippets</span>
-          <div class="stat-num" id="statCount">0</div>
+      <!-- Quick Metrics Ribbon (Compact Mobile) -->
+      <div class="metrics-ribbon">
+        <div class="metric-pill">
+          <span class="metric-val" id="statCount">0</span>
+          <span class="metric-name">Snippets</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-label" data-i18n="totalChars">Karakter Tersimpan</span>
-          <div class="stat-num" id="statChars">0</div>
+        <div class="metric-pill">
+          <span class="metric-val" id="statChars">0</span>
+          <span class="metric-name">Karakter</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-label" data-i18n="pinnedCount">Disematkan</span>
-          <div class="stat-num" id="statPinned">0</div>
+        <div class="metric-pill">
+          <span class="metric-val" id="statPinned">0</span>
+          <span class="metric-name">Pinned</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">VS Code Bridge</span>
-          <div class="stat-status">
-            <span class="status-pulse"></span>
-            <span>Live Stream Ready</span>
-          </div>
+        <div class="metric-pill metric-status">
+          <span class="live-dot-pulse"></span>
+          <span class="metric-name">Live Sync</span>
         </div>
       </div>
 
-      <!-- Action Hero -->
-      <div class="hero-actions-bar">
-        <div class="hero-title-group">
-          <h2 data-i18n="workspaceTitle">Workspace Clipboard Lintas Perangkat</h2>
-          <p data-i18n="workspaceSubtitle">Potongan kode & teks tersinkronisasi otomatis di seluruh komputer dan gadget Anda.</p>
+      <!-- Action & Search Toolbar -->
+      <div class="action-toolbar">
+        <div class="search-field-wrap">
+          <svg class="search-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="searchInput" placeholder="Cari snippet..." autocomplete="off">
         </div>
-        <div class="hero-btn-group">
-          <button id="btnExportAll" class="btn btn-secondary" title="Export Backup">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span data-i18n="export">Export JSON</span>
-          </button>
-          <button id="btnNewSnippet" class="btn btn-primary glow-accent">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span data-i18n="newSnippet">+ Snippet Baru</span>
-          </button>
-        </div>
+        <button id="btnNewSnippet" class="btn btn-primary btn-add-snippet glow-accent">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>+ Snippet</span>
+        </button>
       </div>
 
-      <!-- Filter Tabs & Search -->
-      <div class="filter-strip">
+      <!-- Filter Scroll Chips (Smooth Touch) -->
+      <div class="filter-scroll-wrapper">
         <div class="chips-container" id="filterTabs">
-          <button class="chip active" data-filter="all"><span data-i18n="all">Semua</span> (<span id="countAll">0</span>)</button>
+          <button class="chip active" data-filter="all">Semua (<span id="countAll">0</span>)</button>
           <button class="chip" data-filter="pinned">📌 Pinned (<span id="countPinned">0</span>)</button>
           <button class="chip" data-filter="javascript">JavaScript</button>
           <button class="chip" data-filter="python">Python</button>
           <button class="chip" data-filter="bash">Bash / Shell</button>
           <button class="chip" data-filter="sql">SQL</button>
           <button class="chip" data-filter="json">JSON</button>
-          <button class="chip" data-filter="plaintext">Plain Text</button>
-        </div>
-        <div class="search-wrap">
-          <input type="text" id="searchInput" placeholder="Cari snippet..." autocomplete="off">
+          <button class="chip" data-filter="plaintext">Text</button>
         </div>
       </div>
 
@@ -219,16 +210,16 @@
       <!-- Empty State -->
       <div id="emptyState" class="empty-box hidden">
         <div class="empty-icon-ring">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
             <line x1="9" y1="9" x2="15" y2="9"></line>
             <line x1="9" y1="13" x2="15" y2="13"></line>
             <line x1="9" y1="17" x2="11" y2="17"></line>
           </svg>
         </div>
-        <h3 data-i18n="emptyTitle">Belum Ada Snippet Tersimpan</h3>
-        <p data-i18n="emptyDesc">Tambahkan potongan kode atau teks di workstation ini, lalu login di workstation lain untuk mengambilnya seketika.</p>
-        <button id="btnEmptyNew" class="btn btn-secondary" data-i18n="createFirst">+ Buat Snippet Pertama</button>
+        <h3>Belum Ada Snippet</h3>
+        <p>Salin teks atau kode dari HP ini atau komputer Anda untuk mulai menyinkronkannya.</p>
+        <button id="btnEmptyNew" class="btn btn-secondary">+ Buat Snippet Pertama</button>
       </div>
 
     </section>
@@ -243,29 +234,29 @@
           </svg>
         </div>
         
-        <h2 class="auth-headline" data-i18n="authTitle">NativeCopy Enterprise</h2>
-        <p class="auth-lead" data-i18n="authSubtitle">Masuk dengan akun yang sama di seluruh workstation & perangkat Anda untuk sinkronisasi otomatis.</p>
+        <h2 class="auth-headline">NativeCopy</h2>
+        <p class="auth-lead">Masuk dengan akun yang sama di HP dan laptop Anda untuk sinkronisasi otomatis.</p>
 
         <div class="auth-tabs-toggle">
-          <button id="tabLogin" class="tab-toggle-btn active" data-i18n="loginTab">Masuk (Login)</button>
-          <button id="tabRegister" class="tab-toggle-btn" data-i18n="registerTab">Daftar Akun</button>
+          <button id="tabLogin" class="tab-toggle-btn active">Masuk (Login)</button>
+          <button id="tabRegister" class="tab-toggle-btn">Daftar Akun</button>
         </div>
 
         <form id="authForm" class="auth-form-fields">
           <div class="field-item">
-            <label data-i18n="username">Username</label>
+            <label>Username</label>
             <input type="text" id="authUsername" required placeholder="Contoh: athalla_dev" autocomplete="username">
           </div>
 
           <div class="field-item">
-            <label data-i18n="password">Password</label>
+            <label>Password</label>
             <input type="password" id="authPassword" required placeholder="••••••••" autocomplete="current-password">
           </div>
 
           <div id="authError" class="auth-error-box hidden"></div>
 
           <button type="submit" id="btnSubmitAuth" class="btn btn-primary btn-block glow-accent">
-            <span id="authBtnText" data-i18n="btnLogin">Masuk ke Workspace</span>
+            <span id="authBtnText">Masuk ke Workspace</span>
           </button>
         </form>
 
@@ -277,9 +268,10 @@
 
   </main>
 
-  <!-- MODAL: CREATE / EDIT SNIPPET -->
+  <!-- MODAL: CREATE / EDIT SNIPPET (iOS Bottom Sheet on Mobile) -->
   <div id="modalSnippet" class="modal-overlay hidden">
     <div class="modal-window modal-wide">
+      <div class="modal-drag-handle"></div>
       <div class="modal-top">
         <div class="modal-heading">
           <span class="theme-accent-indicator"></span>
@@ -293,11 +285,11 @@
 
         <div class="form-row-2">
           <div class="field-item flex-2">
-            <label data-i18n="snippetTitleLabel">Judul / Keterangan</label>
-            <input type="text" id="snippetTitleInput" placeholder="Contoh: Migration Query v3, API Auth Secret, Dockerfile">
+            <label>Judul / Keterangan</label>
+            <input type="text" id="snippetTitleInput" placeholder="Contoh: Migration Query v3, API Auth Secret">
           </div>
           <div class="field-item flex-1">
-            <label data-i18n="snippetLangLabel">Bahasa / Format</label>
+            <label>Format</label>
             <select id="snippetLangInput">
               <option value="plaintext">Plain Text</option>
               <option value="javascript">JavaScript / TS</option>
@@ -317,23 +309,23 @@
 
         <div class="field-item">
           <div class="code-area-header">
-            <label data-i18n="snippetCodeLabel">Isi Kode / Teks</label>
-            <span class="tab-hint">Tab indentation enabled</span>
+            <label>Isi Kode / Teks</label>
+            <span class="tab-hint hide-mobile">Tab indentation enabled</span>
           </div>
-          <textarea id="snippetContentInput" required rows="9" placeholder="Paste kode atau teks Anda di sini..."></textarea>
+          <textarea id="snippetContentInput" required rows="7" placeholder="Paste kode atau teks Anda di sini..."></textarea>
         </div>
 
         <div class="checkbox-line">
           <label>
             <input type="checkbox" id="snippetPinInput">
-            <span data-i18n="pinSnippet">📌 Sematkan di paling atas (Pin)</span>
+            <span>📌 Sematkan di paling atas (Pin)</span>
           </label>
         </div>
 
         <div class="modal-bottom-actions">
-          <button type="button" id="btnCancelSnippet" class="btn btn-secondary" data-i18n="cancel">Batal</button>
+          <button type="button" id="btnCancelSnippet" class="btn btn-secondary">Batal</button>
           <button type="submit" class="btn btn-primary glow-accent" id="btnSaveSnippet">
-            <span data-i18n="saveAndSync">Simpan & Sync</span>
+            <span>Simpan & Sync</span>
           </button>
         </div>
       </form>
@@ -343,9 +335,10 @@
   <!-- MODAL: VS CODE EXTENSION SETUP & TOKEN -->
   <div id="modalVsCode" class="modal-overlay hidden">
     <div class="modal-window modal-wide">
+      <div class="modal-drag-handle"></div>
       <div class="modal-top">
         <div class="modal-heading">
-          <span>⚡</span>
+          <span style="color:#06b6d4;">⚡</span>
           <h3>Integrasi VS Code Extension</h3>
         </div>
         <button id="btnCloseVsCodeModal" class="close-x-btn">&times;</button>
@@ -353,32 +346,31 @@
 
       <div class="modal-content-form">
         <div class="about-hero-box">
-          <h4>🚀 Remote Live Typing Langsung ke VS Code</h4>
-          <p>Ketik atau salin teks dari HP / Browser Anda, dan teks akan langsung otomatis tertulis pada file yang sedang Anda buka di VS Code komputer Anda!</p>
+          <h4>🚀 Remote Live Typing ke VS Code</h4>
+          <p>Ketik atau salin teks dari HP Anda, dan teks otomatis tertulis di file aktif VS Code komputer Anda!</p>
         </div>
 
         <div class="field-item">
-          <label>Token Akun Anda (Gunakan di VS Code):</label>
+          <label>Token Akun Anda:</label>
           <div class="prefix-input">
             <input type="text" id="userTokenDisplay" readonly value="Login terlebih dahulu">
-            <button type="button" id="btnCopyUserToken" class="btn btn-secondary" style="height:30px; padding:0 8px; font-size:11px;">Salin Token</button>
+            <button type="button" id="btnCopyUserToken" class="btn btn-secondary btn-copy-token">Salin Token</button>
           </div>
         </div>
 
-        <div class="about-hero-box" style="background:var(--bg-input);">
-          <h4 style="font-size:13px; margin-bottom:6px;">📦 Cara Pasang di Komputer / Laptop Lain:</h4>
-          <ol style="font-size:12px; color:var(--text-muted); padding-left:18px; line-height:1.7;">
-            <li>Jalankan perintah berikut di terminal komputer tujuan:
-              <br><code style="background:var(--bg-surface); padding:2px 6px; border-radius:4px; color:#34d399;">git clone https://github.com/muhmdathalla/nativecopy.git &amp;&amp; ./nativecopy/install-extension.sh</code> (untuk Windows: jalankan <code>install-extension.bat</code>).
+        <div class="about-hero-box setup-guide-box">
+          <h4>📦 Cara Pasang di Laptop / PC:</h4>
+          <ol>
+            <li>Jalankan di terminal laptop Anda:
+              <br><code>git clone https://github.com/muhmdathalla/nativecopy.git &amp;&amp; ./nativecopy/install-extension.sh</code>
             </li>
-            <li>Buka / restart VS Code Anda.</li>
-            <li>Tekan <kbd>Ctrl+Shift+P</kbd> (atau <kbd>Cmd+Shift+P</kbd> di Mac), ketik <strong>"NativeCopy: Connect"</strong>, lalu paste token akun Anda.</li>
-            <li>Selesai! Status di pojok kanan bawah VS Code akan berubah menjadi <strong>"⚡ NativeCopy: Live"</strong>.</li>
+            <li>Buka VS Code $\rightarrow$ tekan <kbd>Cmd+Shift+P</kbd> (Mac) atau <kbd>Ctrl+Shift+P</kbd> (Windows).</li>
+            <li>Ketik <strong>"NativeCopy: Connect"</strong> dan paste token Anda.</li>
           </ol>
         </div>
 
         <div class="modal-bottom-actions">
-          <button type="button" id="btnCloseVsCodeModalBottom" class="btn btn-secondary">Tutup</button>
+          <button type="button" id="btnCloseVsCodeModalBottom" class="btn btn-secondary btn-block">Tutup</button>
         </div>
       </div>
     </div>
@@ -387,29 +379,28 @@
   <!-- MODAL: SARAN & KRITIK (FEEDBACK) -->
   <div id="modalFeedback" class="modal-overlay hidden">
     <div class="modal-window">
+      <div class="modal-drag-handle"></div>
       <div class="modal-top">
         <div class="modal-heading">
           <span>💬</span>
-          <h3 data-i18n="feedbackTitle">Saran & Kritik (Feedback)</h3>
+          <h3>Saran & Kritik (Feedback)</h3>
         </div>
         <button id="btnCloseFeedback" class="close-x-btn">&times;</button>
       </div>
 
       <form id="feedbackForm" class="modal-content-form">
-        <p class="form-desc" data-i18n="feedbackDesc">Bantu kami meningkatkan kualitas NativeCopy. Setiap saran, kritik, atau laporan bug sangat kami hargai!</p>
-
         <div class="field-item">
-          <label data-i18n="feedbackCategory">Kategori</label>
+          <label>Kategori</label>
           <select id="fbCategory">
-            <option value="Feature Request">💡 Permintaan Fitur Baru (Feature Request)</option>
-            <option value="Bug Report">🐛 Laporan Masalah / Bug</option>
+            <option value="Feature Request">💡 Permintaan Fitur Baru</option>
+            <option value="Bug Report">🐛 Laporan Bug</option>
             <option value="UI/UX Improvement">🎨 Masukan Tampilan (UI/UX)</option>
             <option value="General Feedback">💬 Saran & Kritik Umum</option>
           </select>
         </div>
 
         <div class="field-item">
-          <label data-i18n="feedbackRating">Kepuasan Layanan</label>
+          <label>Kepuasan Layanan</label>
           <div class="star-rating" id="starRating">
             <span class="star active" data-val="1">★</span>
             <span class="star active" data-val="2">★</span>
@@ -422,13 +413,13 @@
         </div>
 
         <div class="field-item">
-          <label data-i18n="feedbackMessage">Pesan / Masukan Anda</label>
-          <textarea id="fbMessage" required rows="4" placeholder="Tuliskan kritik, saran, atau ide fitur yang Anda harapkan..."></textarea>
+          <label>Pesan Anda</label>
+          <textarea id="fbMessage" required rows="4" placeholder="Tuliskan masukan atau ide Anda di sini..."></textarea>
         </div>
 
         <div class="modal-bottom-actions">
-          <button type="button" id="btnCancelFeedback" class="btn btn-secondary" data-i18n="cancel">Batal</button>
-          <button type="submit" class="btn btn-primary glow-accent" id="btnSubmitFeedback" data-i18n="sendFeedback">Kirim Masukan</button>
+          <button type="button" id="btnCancelFeedback" class="btn btn-secondary">Batal</button>
+          <button type="submit" class="btn btn-primary glow-accent" id="btnSubmitFeedback">Kirim Masukan</button>
         </div>
       </form>
     </div>
@@ -437,10 +428,11 @@
   <!-- MODAL: LIVE CURRENCY CONVERTER -->
   <div id="modalCurrency" class="modal-overlay hidden">
     <div class="modal-window modal-narrow">
+      <div class="modal-drag-handle"></div>
       <div class="modal-top">
         <div class="modal-heading">
           <span>💱</span>
-          <h3 data-i18n="currencyTitle">Kurs Mata Uang Live (USD / IDR)</h3>
+          <h3>Kurs Mata Uang Live</h3>
         </div>
         <button id="btnCloseCurrency" class="close-x-btn">&times;</button>
       </div>
@@ -449,12 +441,11 @@
         <div class="currency-hero-display">
           <span class="curr-status-tag">Realtime Exchange Rate</span>
           <div class="curr-main-rate" id="calcRateDisplay">1 USD = Rp 16.250,00</div>
-          <span class="curr-subtext">Sumber data kurs resmi diperbarui secara otomatis</span>
         </div>
 
         <div class="calc-inputs-grid">
           <div class="field-item">
-            <label>USD (Dollar AS)</label>
+            <label>USD ($)</label>
             <div class="prefix-input">
               <span>$</span>
               <input type="number" id="inputUSD" value="100" min="0" step="any">
@@ -464,7 +455,7 @@
           <div class="swap-icon">⇅</div>
 
           <div class="field-item">
-            <label>IDR (Rupiah)</label>
+            <label>IDR (Rp)</label>
             <div class="prefix-input">
               <span>Rp</span>
               <input type="text" id="inputIDR" value="1.625.000">
@@ -473,7 +464,6 @@
         </div>
 
         <div class="presets-row">
-          <span class="presets-label">Preset cepat:</span>
           <button type="button" class="preset-pill" data-usd="10">$10</button>
           <button type="button" class="preset-pill" data-usd="50">$50</button>
           <button type="button" class="preset-pill" data-usd="100">$100</button>
@@ -487,57 +477,40 @@
   <!-- MODAL: ABOUT ENTERPRISE -->
   <div id="modalAbout" class="modal-overlay hidden">
     <div class="modal-window">
+      <div class="modal-drag-handle"></div>
       <div class="modal-top">
         <div class="modal-heading">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-          <h3 data-i18n="aboutTitle">Tentang NativeCopy Enterprise</h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <h3>Tentang NativeCopy</h3>
         </div>
         <button id="btnCloseAbout" class="close-x-btn">&times;</button>
       </div>
 
       <div class="modal-content-form about-body">
         <div class="about-hero-box">
-          <h4>NativeCopy Enterprise Suite</h4>
-          <p>Sistem manajemen clipboard & code sharing lintas perangkat berkinerja tinggi dengan integrasi langsung ke editor VS Code.</p>
+          <h4>NativeCopy Pro Suite</h4>
+          <p>Sistem manajemen clipboard & live remote code injection lintas perangkat dengan responsivitas tinggi pada smartphone dan desktop.</p>
         </div>
 
         <div class="features-2x2">
           <div class="feat-box">
             <span class="feat-emoji">⚡</span>
             <div>
-              <strong>VS Code Live Insertion</strong>
-              <p>Ketik di HP, teks langsung tertulis di kursor aktif VS Code.</p>
+              <strong>VS Code Live Typing</strong>
+              <p>Ketik di HP, teks langsung tertulis di kursor editor laptop Anda.</p>
             </div>
           </div>
           <div class="feat-box">
             <span class="feat-emoji">🛡️</span>
             <div>
               <strong>Stateless PBKDF2 Security</strong>
-              <p>Sesi login persisten stabil di seluruh arsitektur cloud serverless.</p>
-            </div>
-          </div>
-          <div class="feat-box">
-            <span class="feat-emoji">🕒</span>
-            <div>
-              <strong>Global World Clocks</strong>
-              <p>Pantau 4 zona waktu bisnis utama (JKT, NYC, IST, MED) langsung.</p>
-            </div>
-          </div>
-          <div class="feat-box">
-            <span class="feat-emoji">🎨</span>
-            <div>
-              <strong>Dynamic Multi-Theme Canvas</strong>
-              <p>Animasi interaktif yang menyesuaikan estetika tema pilihan Anda.</p>
+              <p>Sesi login persisten stabil di seluruh cloud serverless.</p>
             </div>
           </div>
         </div>
 
         <div class="about-footer-info">
-          <span>NativeCopy v2.5 Enterprise Edition • Built with precision</span>
+          <span>NativeCopy v2.5 • Optimized for iPhone 13 Pro & Modern Devices</span>
         </div>
       </div>
     </div>

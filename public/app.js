@@ -118,8 +118,11 @@
     langFlag: document.getElementById('langFlag'),
     langLabel: document.getElementById('langLabel'),
     btnOpenVsCodeSetup: document.getElementById('btnOpenVsCodeSetup'),
-    btnOpenFeedback: document.getElementById('btnOpenFeedback'),
-    btnOpenAbout: document.getElementById('btnOpenAbout'),
+    btnOpenMoreMenu: document.getElementById('btnOpenMoreMenu'),
+    moreDropdown: document.getElementById('moreDropdown'),
+    menuItemFeedback: document.getElementById('menuItemFeedback'),
+    menuItemAbout: document.getElementById('menuItemAbout'),
+    menuItemExport: document.getElementById('menuItemExport'),
     btnOpenCurrency: document.getElementById('btnOpenCurrency'),
     tickerRate: document.getElementById('tickerRate'),
     navAuthSlot: document.getElementById('navAuthSlot'),
@@ -130,6 +133,7 @@
     clockMED: document.getElementById('clockMED'),
     // VS Code Remote Box
     remoteVsCodeInput: document.getElementById('remoteVsCodeInput'),
+    remoteCharCount: document.getElementById('remoteCharCount'),
     btnSendToVsCode: document.getElementById('btnSendToVsCode'),
     // Stats
     statCount: document.getElementById('statCount'),
@@ -139,7 +143,6 @@
     appView: document.getElementById('appView'),
     authView: document.getElementById('authView'),
     btnNewSnippet: document.getElementById('btnNewSnippet'),
-    btnExportAll: document.getElementById('btnExportAll'),
     filterTabs: document.getElementById('filterTabs'),
     searchInput: document.getElementById('searchInput'),
     snippetsGrid: document.getElementById('snippetsGrid'),
@@ -959,10 +962,52 @@
       setLanguage(state.lang === 'id' ? 'en' : 'id');
     });
 
-    // Send to VS Code live button
+    // Send to VS Code live button & char counter
+    if (el.remoteVsCodeInput && el.remoteCharCount) {
+      el.remoteVsCodeInput.addEventListener('input', () => {
+        const len = el.remoteVsCodeInput.value.length;
+        el.remoteCharCount.textContent = `${len} char${len === 1 ? '' : 's'}`;
+      });
+    }
+
     el.btnSendToVsCode.addEventListener('click', () => {
       sendDirectToVsCode(el.remoteVsCodeInput.value);
     });
+
+    // More Menu Dropdown
+    if (el.btnOpenMoreMenu && el.moreDropdown) {
+      el.btnOpenMoreMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.moreDropdown.classList.toggle('hidden');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!el.moreDropdown.contains(e.target) && e.target !== el.btnOpenMoreMenu) {
+          el.moreDropdown.classList.add('hidden');
+        }
+      });
+    }
+
+    if (el.menuItemFeedback) {
+      el.menuItemFeedback.addEventListener('click', () => {
+        el.moreDropdown?.classList.add('hidden');
+        el.modalFeedback?.classList.remove('hidden');
+      });
+    }
+
+    if (el.menuItemAbout) {
+      el.menuItemAbout.addEventListener('click', () => {
+        el.moreDropdown?.classList.add('hidden');
+        el.modalAbout?.classList.remove('hidden');
+      });
+    }
+
+    if (el.menuItemExport) {
+      el.menuItemExport.addEventListener('click', () => {
+        el.moreDropdown?.classList.add('hidden');
+        exportSnippetsJSON();
+      });
+    }
 
     // VS Code Setup Modal
     el.btnOpenVsCodeSetup.addEventListener('click', () => {
@@ -992,17 +1037,12 @@
       });
     });
 
-    // Feedback Modal
-    el.btnOpenFeedback.addEventListener('click', () => el.modalFeedback.classList.remove('hidden'));
+    // Feedback Modal close buttons
     el.btnCloseFeedback.addEventListener('click', () => el.modalFeedback.classList.add('hidden'));
     el.btnCancelFeedback.addEventListener('click', () => el.modalFeedback.classList.add('hidden'));
 
-    // About Modal
-    el.btnOpenAbout.addEventListener('click', () => el.modalAbout.classList.remove('hidden'));
+    // About Modal close button
     el.btnCloseAbout.addEventListener('click', () => el.modalAbout.classList.add('hidden'));
-
-    // Export JSON
-    el.btnExportAll.addEventListener('click', exportSnippetsJSON);
 
     // Auth Form Tabs
     el.tabLogin.addEventListener('click', () => {
@@ -1060,9 +1100,25 @@
 
     // Backdrop click closes modal
     [el.modalSnippet, el.modalVsCode, el.modalCurrency, el.modalFeedback, el.modalAbout].forEach(m => {
+      if (!m) return;
       m.addEventListener('click', (e) => {
         if (e.target === m) m.classList.add('hidden');
       });
+
+      // Touch drag down on handle to close (iOS feel)
+      const handle = m.querySelector('.modal-drag-handle');
+      if (handle) {
+        let startY = 0;
+        handle.addEventListener('touchstart', (e) => {
+          startY = e.touches[0].clientY;
+        }, { passive: true });
+        handle.addEventListener('touchend', (e) => {
+          const deltaY = e.changedTouches[0].clientY - startY;
+          if (deltaY > 50) {
+            m.classList.add('hidden');
+          }
+        }, { passive: true });
+      }
     });
   }
 
