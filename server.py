@@ -15,6 +15,7 @@ import re
 import threading
 import queue
 import time
+import base64
 from typing import Dict, List, Set, Optional
 
 import database
@@ -190,6 +191,38 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             snippets = database.get_user_snippets(user["id"], search, language)
             return self.send_json(200, {"snippets": snippets})
 
+        # List Teleported Files
+        if path == "/api/files":
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            files = database.get_user_files(user["id"])
+            return self.send_json(200, {"files": files})
+
+        # Download Teleported File
+        if path.startswith("/api/files/") and path.endswith("/download"):
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            try:
+                parts = path.strip("/").split("/")
+                file_id = int(parts[2])
+                f = database.get_file_by_id(file_id, user["id"], include_data=True)
+                if not f:
+                    return self.send_json(404, {"error": "File tidak ditemukan."})
+                
+                raw_data = base64.b64decode(f["fileData"])
+                self.send_response(200)
+                self.send_header("Content-Type", f["mimeType"] or "application/octet-stream")
+                self.send_header("Content-Length", str(len(raw_data)))
+                self.send_header("Content-Disposition", f'attachment; filename="{f["filename"]}"')
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(raw_data)
+                return
+            except Exception as e:
+                return self.send_json(500, {"error": f"Gagal mengunduh file: {str(e)}"})
+
         # Recent events replay for polling & reconnect recovery
         if path == "/api/events/recent":
             user = self.get_authenticated_user()
@@ -288,6 +321,87 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             return self.send_json(200, {
                 "success": True,
                 "message": "⚡ Teks berhasil dikirim langsung ke kursor aktif VS Code!",
+                "payload": payload
+            })
+
+        # 2. File Teleportation Endpoint (Phone -> VS Code Directory / VS Code -> Phone)
+        if path == "/api/files/upload":
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            
+            data = self.parse_json_body() or {}
+            filename = data.get("filename", "").strip()
+            file_data = data.get("fileData", "") # Base64 string
+            file_size = int(data.get("fileSize", len(file_data)))
+            mime_type = data.get("mimeType", "application/octet-stream")
+            target = data.get("target", "workspace") # "workspace" or "general"
+            sender = data.get("sender", "Mobile Device")
+
+            if not filename or not file_data:
+                return self.send_json(400, {"error": "Nama berkas dan data konten wajib diisi."})
+
+            saved_file = database.create_teleport_file(
+                user_id=user["id"],
+                filename=filename,
+                file_size=file_size,
+                mime_type=mime_type,
+                file_data=file_data,
+                target=target,
+                sender=sender
+            )
+
+            # Broadcast file_teleport event to all user's connected VS Code & Web instances
+            event_payload = {
+                "fileId": saved_file["id"],
+                "filename": filename,
+                "fileSize": file_size,
+                "mimeType": mime_type,
+                "fileData": file_data, # base64 payload for direct disk injection
+                "target": target,
+                "sender": sender,
+                "timestamp": int(time.time() * 1000)
+            }
+            broadcast_user_event(user["id"], "file_teleport", event_payload)
+
+            return self.send_json(201, {
+                "success": True,
+                "message": f"📁 Berkas '{filename}' berhasil diteleportasikan!",
+                "file": saved_file
+            })
+
+        # 3. Reverse Selection Teleport Endpoint (VS Code -> Mobile Screen)
+        if path == "/api/teleport/selection":
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            
+            data = self.parse_json_body() or {}
+            text = data.get("text", "")
+            language = data.get("language", "plaintext")
+            file_name = data.get("fileName", "VS Code Editor")
+            sender = data.get("sender", "VS Code")
+
+            if not str(text):
+                return self.send_json(400, {"error": "Teks seleksi tidak boleh kosong."})
+
+            payload = {
+                "text": str(text),
+                "language": language,
+                "fileName": file_name,
+                "sender": sender,
+                "timestamp": int(time.time() * 1000)
+            }
+            broadcast_user_event(user["id"], "reverse_teleport", payload)
+
+            # Also create snippet in user's cloud clipboard
+            if data.get("saveSnippet", True):
+                snip = database.create_snippet(user["id"], f"Teleport dari {file_name}", str(text), language, False)
+                broadcast_user_event(user["id"], "snippet_created", snip)
+
+            return self.send_json(200, {
+                "success": True,
+                "message": "⚡ Seleksi kode berhasil diteleportasikan ke layar HP!",
                 "payload": payload
             })
 
@@ -439,6 +553,20 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                     return self.send_json(200, {"message": "Snippet berhasil dihapus.", "id": snippet_id})
                 except ValueError:
                     return self.send_json(400, {"error": "ID Snippet tidak valid."})
+
+        if path.startswith("/api/files/"):
+            parts = path.strip("/").split("/")
+            if len(parts) == 3 and parts[1] == "files":
+                try:
+                    file_id = int(parts[2])
+                    deleted = database.delete_teleport_file(file_id, user["id"])
+                    if not deleted:
+                        return self.send_json(404, {"error": "File tidak ditemukan."})
+                    
+                    broadcast_user_event(user["id"], "file_deleted", {"id": file_id})
+                    return self.send_json(200, {"success": True, "message": "File berhasil dihapus.", "id": file_id})
+                except ValueError:
+                    return self.send_json(400, {"error": "ID File tidak valid."})
 
         return self.send_json(404, {"error": "Endpoint not found"})
 

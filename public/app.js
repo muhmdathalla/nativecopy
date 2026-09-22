@@ -104,7 +104,8 @@
     usdRate: 16250.0,
     eventSource: null,
     pollingTimer: null,
-    isRegisterMode: false
+    isRegisterMode: false,
+    teleportFiles: []
   };
 
   // DOM Elements
@@ -131,10 +132,33 @@
     clockNYC: document.getElementById('clockNYC'),
     clockIST: document.getElementById('clockIST'),
     clockMED: document.getElementById('clockMED'),
-    // VS Code Remote Box
+    // VS Code Remote Box & Teleport Tabs
+    tabModeLiveTyping: document.getElementById('tabModeLiveTyping'),
+    tabModeFileTeleport: document.getElementById('tabModeFileTeleport'),
+    panelLiveTyping: document.getElementById('panelLiveTyping'),
+    panelFileTeleport: document.getElementById('panelFileTeleport'),
+    teleportHintText: document.getElementById('teleportHintText'),
     remoteVsCodeInput: document.getElementById('remoteVsCodeInput'),
     remoteCharCount: document.getElementById('remoteCharCount'),
     btnSendToVsCode: document.getElementById('btnSendToVsCode'),
+    // File Teleport Hub
+    fileDropzone: document.getElementById('fileDropzone'),
+    fileTeleportInput: document.getElementById('fileTeleportInput'),
+    btnTriggerFilePick: document.getElementById('btnTriggerFilePick'),
+    fileUploadStatus: document.getElementById('fileUploadStatus'),
+    fileUploadStatusText: document.getElementById('fileUploadStatusText'),
+    teleportFilesSection: document.getElementById('teleportFilesSection'),
+    teleportFilesCount: document.getElementById('teleportFilesCount'),
+    btnRefreshFiles: document.getElementById('btnRefreshFiles'),
+    teleportFilesList: document.getElementById('teleportFilesList'),
+    // Reverse Teleport Popup
+    reverseTeleportBanner: document.getElementById('reverseTeleportBanner'),
+    reverseSenderLabel: document.getElementById('reverseSenderLabel'),
+    btnCloseReverseBanner: document.getElementById('btnCloseReverseBanner'),
+    reverseFileName: document.getElementById('reverseFileName'),
+    reverseCharCount: document.getElementById('reverseCharCount'),
+    reverseCodePreview: document.getElementById('reverseCodePreview'),
+    btnCopyReverseCode: document.getElementById('btnCopyReverseCode'),
     // Stats
     statCount: document.getElementById('statCount'),
     statChars: document.getElementById('statChars'),
@@ -538,6 +562,7 @@
       
       initSync();
       fetchSnippets();
+      fetchTeleportFiles();
     } else {
       el.appView.classList.add('hidden');
       el.authView.classList.remove('hidden');
@@ -651,7 +676,259 @@
     } else if (msg.type === 'snippet_deleted') {
       state.snippets = state.snippets.filter(s => s.id !== msg.payload.id);
       renderSnippets();
+    } else if (msg.type === 'reverse_teleport') {
+      // VS Code teleports selected text to mobile screen
+      showReverseTeleportPopup(msg.payload);
+    } else if (msg.type === 'file_teleport') {
+      // New file teleported
+      fetchTeleportFiles();
+      showToast(`📁 Berkas '${msg.payload.filename}' diterima!`, 'success');
+      playCyberChime();
+    } else if (msg.type === 'file_deleted') {
+      fetchTeleportFiles();
     }
+  }
+
+  // --- Audio Synth Chime (Web Audio API - No External Files) ---
+  function playCyberChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880.00, ctx.currentTime + 0.08); // A5
+      osc.frequency.exponentialRampToValueAtTime(1174.66, ctx.currentTime + 0.16); // D6
+
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.36);
+    } catch (e) {}
+
+    // Haptic vibration on mobile
+    if (navigator.vibrate) {
+      try { navigator.vibrate([40, 50, 40]); } catch (e) {}
+    }
+  }
+
+  // --- Reverse Teleport Popup (VS Code -> Phone) ---
+  let reversePopupTimer = null;
+  function showReverseTeleportPopup(payload) {
+    if (!payload || !el.reverseTeleportBanner) return;
+    playCyberChime();
+
+    const text = payload.text || '';
+    const fileName = payload.fileName || 'VS Code';
+    const lang = payload.language || 'plaintext';
+    const sender = payload.sender || 'VS Code Laptop';
+
+    el.reverseSenderLabel.textContent = `⚡ DITERIMA DARI ${sender.toUpperCase()}`;
+    el.reverseFileName.textContent = fileName;
+    el.reverseCharCount.textContent = `${text.length} chars`;
+    el.reverseCodePreview.textContent = text;
+
+    el.reverseTeleportBanner.classList.remove('hidden');
+
+    el.btnCopyReverseCode.onclick = () => {
+      copyToClipboard(text, el.btnCopyReverseCode);
+      setTimeout(() => {
+        el.reverseTeleportBanner.classList.add('hidden');
+      }, 700);
+    };
+
+    if (reversePopupTimer) clearTimeout(reversePopupTimer);
+    reversePopupTimer = setTimeout(() => {
+      el.reverseTeleportBanner.classList.add('hidden');
+    }, 15000); // Auto hide after 15s
+  }
+
+  // --- Teleport Mode Tabs & File Hub ---
+  function setupTeleportModeTabs() {
+    if (!el.tabModeLiveTyping || !el.tabModeFileTeleport) return;
+
+    el.tabModeLiveTyping.addEventListener('click', () => {
+      el.tabModeLiveTyping.classList.add('active');
+      el.tabModeFileTeleport.classList.remove('active');
+      el.panelLiveTyping.classList.remove('hidden');
+      el.panelFileTeleport.classList.add('hidden');
+      if (el.teleportHintText) el.teleportHintText.textContent = 'Ketik di HP, langsung tertulis di kursor VS Code';
+    });
+
+    el.tabModeFileTeleport.addEventListener('click', () => {
+      el.tabModeFileTeleport.classList.add('active');
+      el.tabModeLiveTyping.classList.remove('active');
+      el.panelFileTeleport.classList.remove('hidden');
+      el.panelLiveTyping.classList.add('hidden');
+      if (el.teleportHintText) el.teleportHintText.textContent = 'Upload file dari HP, langsung tersimpan ke folder VS Code!';
+      fetchTeleportFiles();
+    });
+
+    if (el.btnCloseReverseBanner) {
+      el.btnCloseReverseBanner.addEventListener('click', () => {
+        el.reverseTeleportBanner.classList.add('hidden');
+      });
+    }
+
+    if (el.btnRefreshFiles) {
+      el.btnRefreshFiles.addEventListener('click', fetchTeleportFiles);
+    }
+  }
+
+  // --- File Teleportation Engine ---
+  function setupFileTeleportation() {
+    if (!el.fileDropzone || !el.fileTeleportInput) return;
+
+    el.btnTriggerFilePick?.addEventListener('click', () => {
+      el.fileTeleportInput.click();
+    });
+
+    el.fileTeleportInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileUpload(file);
+      el.fileTeleportInput.value = '';
+    });
+
+    // Drag and Drop
+    el.fileDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      el.fileDropzone.classList.add('dragover');
+    });
+
+    el.fileDropzone.addEventListener('dragleave', () => {
+      el.fileDropzone.classList.remove('dragover');
+    });
+
+    el.fileDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.fileDropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  async function handleFileUpload(file) {
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      showToast('Ukuran file maksimal 25 MB', 'error');
+      return;
+    }
+
+    el.fileUploadStatus.classList.remove('hidden');
+    el.fileUploadStatusText.textContent = `Mengirim '${file.name}' (${formatFileSize(file.size)})...`;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result.split(',')[1];
+        const res = await api('/api/files/upload', {
+          method: 'POST',
+          body: JSON.stringify({
+            filename: file.name,
+            fileData: base64Data,
+            fileSize: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            target: 'workspace',
+            sender: 'Mobile Phone'
+          })
+        });
+
+        el.fileUploadStatus.classList.add('hidden');
+
+        if (res.ok) {
+          showToast(`📁 Berkas '${file.name}' berhasil di-inject ke folder VS Code!`, 'success');
+          fetchTeleportFiles();
+          playCyberChime();
+        } else {
+          showToast(res.data?.error || 'Gagal mengunggah berkas', 'error');
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      el.fileUploadStatus.classList.add('hidden');
+      showToast(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  async function fetchTeleportFiles() {
+    if (!state.token) return;
+    const res = await api('/api/files');
+    if (res.ok && res.data && Array.isArray(res.data.files)) {
+      state.teleportFiles = res.data.files;
+      renderTeleportFiles(state.teleportFiles);
+    }
+  }
+
+  function renderTeleportFiles(files) {
+    if (!el.teleportFilesSection || !el.teleportFilesList) return;
+
+    if (!files || files.length === 0) {
+      el.teleportFilesSection.classList.add('hidden');
+      if (el.teleportFilesCount) el.teleportFilesCount.textContent = '0';
+      return;
+    }
+
+    el.teleportFilesSection.classList.remove('hidden');
+    if (el.teleportFilesCount) el.teleportFilesCount.textContent = files.length;
+
+    el.teleportFilesList.innerHTML = files.map(f => {
+      const ext = f.filename.split('.').pop().toLowerCase();
+      let icon = '📄';
+      if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) icon = '🖼️';
+      else if (['js', 'ts', 'py', 'cpp', 'html', 'css', 'json', 'sql', 'sh'].includes(ext)) icon = '💻';
+      else if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) icon = '📦';
+      else if (['pdf', 'docx', 'txt', 'md'].includes(ext)) icon = '📝';
+
+      return `
+        <div class="teleport-file-item">
+          <div class="file-item-left">
+            <span class="file-item-icon">${icon}</span>
+            <div class="file-meta-col">
+              <span class="file-item-name" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
+              <span class="file-item-sub">${formatFileSize(f.fileSize)} • Dari: ${escapeHtml(f.sender || 'Device')}</span>
+            </div>
+          </div>
+          <div class="file-action-btns">
+            <a href="/api/files/${f.id}/download?token=${encodeURIComponent(state.token)}" download="${escapeHtml(f.filename)}" class="btn-file-dl" title="Unduh ke HP">
+              <span>⬇ Unduh</span>
+            </a>
+            <button class="btn-file-del btn-delete-file" data-id="${f.id}" title="Hapus Berkas">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    el.teleportFilesList.querySelectorAll('.btn-delete-file').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const fid = btn.getAttribute('data-id');
+        if (!confirm('Hapus berkas ini?')) return;
+        const res = await api(`/api/files/${fid}`, { method: 'DELETE' });
+        if (res.ok) {
+          state.teleportFiles = state.teleportFiles.filter(item => item.id !== parseInt(fid, 10));
+          renderTeleportFiles(state.teleportFiles);
+          showToast('Berkas dihapus');
+        }
+      });
+    });
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
   // --- Snippet Management ---
@@ -1128,6 +1405,8 @@
   initDynamicBackgroundCanvas();
   setupFeedbackSystem();
   setupEventListeners();
+  setupTeleportModeTabs();
+  setupFileTeleportation();
   fetchLiveCurrencyRate();
   updateAuthUI();
 

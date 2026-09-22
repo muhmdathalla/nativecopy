@@ -1,7 +1,7 @@
 {
   "name": "nativecopy",
-  "displayName": "NativeCopy // Live Remote Cursor & Clipboard Sync",
-  "description": "Live real-time code insertion directly into your active VS Code editor from Mobile / Web Clipboard",
+  "displayName": "NativeCopy // Live Remote Cursor, Directory Injection & Clipboard Sync",
+  "description": "Live real-time code insertion directly into your active VS Code editor & native directory file injection from Mobile / Web",
   "version": "1.0.0",
   "publisher": "muhmdathalla",
   "engines": {
@@ -24,6 +24,16 @@
         "category": "NativeCopy"
       },
       {
+        "command": "nativecopy.teleportSelection",
+        "title": "⚡ Teleport Selection to Mobile Screen",
+        "category": "NativeCopy"
+      },
+      {
+        "command": "nativecopy.uploadActiveFile",
+        "title": "📁 Upload Active File to Mobile",
+        "category": "NativeCopy"
+      },
+      {
         "command": "nativecopy.sendSelection",
         "title": "Send Selected Code to Cloud Clipboard",
         "category": "NativeCopy"
@@ -39,12 +49,42 @@
         "category": "NativeCopy"
       }
     ],
+    "keybindings": [
+      {
+        "command": "nativecopy.teleportSelection",
+        "key": "alt+cmd+t",
+        "mac": "alt+cmd+t",
+        "win": "alt+ctrl+t",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "nativecopy.uploadActiveFile",
+        "key": "alt+cmd+u",
+        "mac": "alt+cmd+u",
+        "win": "alt+ctrl+u"
+      }
+    ],
     "menus": {
       "editor/context": [
         {
-          "command": "nativecopy.sendSelection",
-          "group": "NativeCopy",
+          "command": "nativecopy.teleportSelection",
+          "group": "NativeCopy@1",
           "when": "editorHasSelection"
+        },
+        {
+          "command": "nativecopy.uploadActiveFile",
+          "group": "NativeCopy@2"
+        },
+        {
+          "command": "nativecopy.sendSelection",
+          "group": "NativeCopy@3",
+          "when": "editorHasSelection"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "nativecopy.uploadActiveFile",
+          "group": "NativeCopy"
         }
       ]
     },
@@ -66,6 +106,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically insert text received from Mobile / Web into the active VS Code cursor position"
+        },
+        "nativecopy.autoOpenInjectedFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open files received from Mobile in the VS Code editor tab"
         }
       }
     }

@@ -1,13 +1,20 @@
 /**
  * NativeCopy VS Code Extension
- * Enterprise Resilient Live Remote Cursor & Cloud Clipboard Sync
- * Features: Sub-millisecond insertion, Dual SSE/Long-Poll Transport, Watchdog Keep-Alive, Event Replay Buffer
+ * Enterprise Resilient Live Remote Cursor, Direct Directory Injection & Cloud Clipboard Sync
+ * Features:
+ *  - Sub-millisecond live cursor typing
+ *  - Real-time Direct Workspace File Injection from Phone / Other Laptops
+ *  - Reverse Selection Teleport to Mobile Screen (Cmd+Alt+T / Ctrl+Alt+T)
+ *  - Active File Upload to Mobile (Cmd+Alt+U / Ctrl+Alt+U)
+ *  - Dual SSE & Long-Polling Failover Transport with Replay Buffer
  */
 
 const vscode = require('vscode');
 const https = require('https');
 const http = require('http');
 const url = require('url');
+const path = require('path');
+const fs = require('fs');
 
 // Persistent HTTP/HTTPS Agents with socket keep-alive
 const httpAgent = new http.Agent({ keepAlive: true, keepAliveMsecs: 3000, maxSockets: 5 });
@@ -24,7 +31,7 @@ let processedEventIds = new Set();
 let consecutiveErrors = 0;
 
 function activate(context) {
-  console.log('[NativeCopy] Extension activating with resilient sync engine...');
+  console.log('[NativeCopy] Extension activating with 2-way sync & directory injection...');
 
   // 1. Status Bar Indicator
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -33,7 +40,7 @@ function activate(context) {
   updateStatusBar('disconnected', 'Disconnected');
   statusBarItem.show();
 
-  // 2. Register Commands
+  // 2. Command: Connect Account
   const connectCmd = vscode.commands.registerCommand('nativecopy.connect', async () => {
     const config = vscode.workspace.getConfiguration('nativecopy');
     const currentUrl = config.get('serverUrl') || 'https://nativecopy.vercel.app';
@@ -61,7 +68,8 @@ function activate(context) {
     startConnection();
   });
 
-  const sendSelectionCmd = vscode.commands.registerCommand('nativecopy.sendSelection', async () => {
+  // 3. Command: Teleport Selection to Mobile Screen (Reverse Teleport)
+  const teleportSelectionCmd = vscode.commands.registerCommand('nativecopy.teleportSelection', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       vscode.window.showWarningMessage('No active editor open.');
@@ -85,7 +93,90 @@ function activate(context) {
     }
 
     const lang = editor.document.languageId || 'plaintext';
-    const fileName = editor.document.fileName ? editor.document.fileName.split(/[\\/]/).pop() : 'VS Code Snippet';
+    const fileName = editor.document.fileName ? path.basename(editor.document.fileName) : 'VS Code';
+
+    try {
+      await makeApiRequest(serverUrl, '/api/teleport/selection', 'POST', token, {
+        text: text,
+        language: lang,
+        fileName: fileName,
+        sender: 'VS Code Laptop',
+        saveSnippet: true
+      });
+      vscode.window.showInformationMessage(`⚡ Teleported ${text.length} chars from '${fileName}' directly to your Phone screen!`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to teleport selection: ${err.message}`);
+    }
+  });
+
+  // 4. Command: Upload Active File to Mobile
+  const uploadActiveFileCmd = vscode.commands.registerCommand('nativecopy.uploadActiveFile', async (uri) => {
+    let targetUri = uri;
+    if (!targetUri && vscode.window.activeTextEditor) {
+      targetUri = vscode.window.activeTextEditor.document.uri;
+    }
+
+    if (!targetUri) {
+      vscode.window.showWarningMessage('No file selected to upload.');
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('nativecopy');
+    const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
+    const token = config.get('token') || '';
+
+    if (!token) {
+      vscode.window.showErrorMessage('Please connect your NativeCopy account first (Cmd+Shift+P > NativeCopy: Connect).');
+      return;
+    }
+
+    try {
+      const fileBytes = await vscode.workspace.fs.readFile(targetUri);
+      const filename = path.basename(targetUri.fsPath);
+      const base64Data = Buffer.from(fileBytes).toString('base64');
+      const fileSize = fileBytes.length;
+
+      await makeApiRequest(serverUrl, '/api/files/upload', 'POST', token, {
+        filename: filename,
+        fileData: base64Data,
+        fileSize: fileSize,
+        mimeType: 'application/octet-stream',
+        target: 'general',
+        sender: 'VS Code Laptop'
+      });
+
+      vscode.window.showInformationMessage(`📁 File '${filename}' (${formatBytes(fileSize)}) uploaded! Available to download on your Phone.`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to upload file: ${err.message}`);
+    }
+  });
+
+  // 5. Command: Send Selection to Cloud Clipboard
+  const sendSelectionCmd = vscode.commands.registerCommand('nativecopy.sendSelection', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('No active editor open.');
+      return;
+    }
+
+    const selection = editor.selection;
+    const text = editor.document.getText(selection.isEmpty ? undefined : selection);
+    if (!text || !text.trim()) {
+      vscode.window.showWarningMessage('No text selected in editor.');
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('nativecopy');
+    const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
+    const token = config.get('token') || '';
+
+    if (!token) {
+      vscode.window.showErrorMessage('Please connect your NativeCopy account first.');
+      return;
+    }
+
+    const lang = editor.document.languageId || 'plaintext';
+    const fileName = editor.document.fileName ? path.basename(editor.document.fileName) : 'VS Code Snippet';
 
     try {
       await makeApiRequest(serverUrl, '/api/snippets', 'POST', token, {
@@ -100,6 +191,7 @@ function activate(context) {
     }
   });
 
+  // 6. Command: Insert Latest Snippet
   const insertLatestCmd = vscode.commands.registerCommand('nativecopy.insertLatest', async () => {
     const config = vscode.workspace.getConfiguration('nativecopy');
     const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
@@ -123,6 +215,7 @@ function activate(context) {
     }
   });
 
+  // 7. Command: Toggle Auto Insert
   const toggleAutoInsertCmd = vscode.commands.registerCommand('nativecopy.toggleAutoInsert', async () => {
     const config = vscode.workspace.getConfiguration('nativecopy');
     const current = config.get('autoInsert', true);
@@ -130,16 +223,23 @@ function activate(context) {
     vscode.window.showInformationMessage(`NativeCopy Auto-Insert is now ${!current ? 'ENABLED ⚡' : 'DISABLED ⏸️'}`);
   });
 
-  context.subscriptions.push(connectCmd, sendSelectionCmd, insertLatestCmd, toggleAutoInsertCmd);
+  context.subscriptions.push(
+    connectCmd,
+    teleportSelectionCmd,
+    uploadActiveFileCmd,
+    sendSelectionCmd,
+    insertLatestCmd,
+    toggleAutoInsertCmd
+  );
 
-  // 3. Listen for configuration changes
+  // Listen for configuration changes
   vscode.workspace.onDidChangeConfiguration(e => {
     if (e.affectsConfiguration('nativecopy')) {
       startConnection();
     }
   });
 
-  // 4. Start Sync Connection
+  // Start Sync Connection
   startConnection();
 }
 
@@ -147,7 +247,7 @@ function updateStatusBar(status, label) {
   if (!statusBarItem) return;
   if (status === 'live') {
     statusBarItem.text = `$(zap) NativeCopy: Live`;
-    statusBarItem.tooltip = `⚡ NativeCopy: Zero-Latency Live Remote Typing Active\nClick to configure`;
+    statusBarItem.tooltip = `⚡ NativeCopy: Zero-Latency Live Remote Typing & File Teleport Active\nClick to configure`;
     statusBarItem.backgroundColor = undefined;
   } else if (status === 'connecting') {
     statusBarItem.text = `$(sync~spin) NativeCopy: Syncing...`;
@@ -188,9 +288,64 @@ function insertTextIntoActiveEditor(text, label = 'Mobile stream') {
   }
 }
 
+/**
+ * Direct Workspace File Injection
+ * Writes incoming file from phone/laptop directly into active workspace directory!
+ */
+async function handleDirectFileInjection(payload) {
+  const filename = payload.filename || 'teleport_file.bin';
+  const fileDataBase64 = payload.fileData || '';
+  const sender = payload.sender || 'Mobile Device';
+
+  if (!fileDataBase64) {
+    console.warn('[NativeCopy] File injection received with empty data');
+    return;
+  }
+
+  const fileBytes = Buffer.from(fileDataBase64, 'base64');
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  let targetFileUri = null;
+
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    // Write directly into root of active workspace directory
+    targetFileUri = vscode.Uri.joinPath(workspaceFolders[0].uri, filename);
+  } else {
+    // If no workspace open, write to a temp or home directory
+    const tempDir = path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', 'NativeCopy_Downloads');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    targetFileUri = vscode.Uri.file(path.join(tempDir, filename));
+  }
+
+  try {
+    await vscode.workspace.fs.writeFile(targetFileUri, fileBytes);
+    console.log(`[NativeCopy] Injected file saved to: ${targetFileUri.fsPath}`);
+
+    const config = vscode.workspace.getConfiguration('nativecopy');
+    const autoOpen = config.get('autoOpenInjectedFiles', true);
+
+    const action = await vscode.window.showInformationMessage(
+      `📁 NativeCopy: Received '${filename}' (${formatBytes(fileBytes.length)}) from ${sender} -> Saved to active folder!`,
+      'Open File'
+    );
+
+    if (autoOpen || action === 'Open File') {
+      try {
+        const doc = await vscode.workspace.openTextDocument(targetFileUri);
+        await vscode.window.showTextDocument(doc);
+      } catch (e) {
+        // Binary files might not open as text, execute open external
+        vscode.commands.executeCommand('vscode.open', targetFileUri);
+      }
+    }
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to save received file '${filename}': ${err.message}`);
+  }
+}
+
 function resetWatchdog() {
   if (watchdogTimer) clearTimeout(watchdogTimer);
-  // If no ping/data received within 12 seconds, proactively reset and reconnect
   watchdogTimer = setTimeout(() => {
     console.log('[NativeCopy] Watchdog heartbeat timeout. Reconnecting stream...');
     if (sseRequest) {
@@ -223,7 +378,7 @@ function startConnection() {
 
   updateStatusBar('connecting', 'Connecting...');
 
-  // Start Real-Time SSE Stream with Socket Keep-Alive & Replay Buffer
+  // Start Real-Time SSE Stream
   try {
     const streamUrl = `${serverUrl}/api/events?token=${encodeURIComponent(token)}&since_id=${lastEventId}`;
     const parsed = url.parse(streamUrl);
@@ -278,7 +433,6 @@ function startConnection() {
 
         res.on('end', () => {
           isConnected = false;
-          // Normal proxy stream rotation (e.g. Vercel 15s limit) -> reconnect instantly with 50ms delay
           triggerReconnect(50);
         });
 
@@ -381,7 +535,7 @@ function handleIncomingEvent(event) {
     }
   }
 
-  // 1. Direct Live Remote Typing Event (From Mobile or Web)
+  // 1. Direct Live Remote Typing Event
   if (event.type === 'vscode_remote_insert') {
     const payload = event.payload || {};
     const content = payload.content || '';
@@ -390,7 +544,13 @@ function handleIncomingEvent(event) {
     }
   }
 
-  // 2. Snippet Created Event
+  // 2. Direct Workspace File Injection Event (From Phone / Other Laptop)
+  if (event.type === 'file_teleport') {
+    const payload = event.payload || {};
+    handleDirectFileInjection(payload);
+  }
+
+  // 3. Snippet Created Event
   if (event.type === 'snippet_created') {
     const snip = event.payload || {};
     vscode.window.setStatusBarMessage(`⚡ NativeCopy: New snippet created: "${snip.title}"`, 3000);
@@ -436,7 +596,7 @@ function makeApiRequest(serverUrl, apiPath, method = 'GET', token = '', bodyData
     });
 
     req.on('error', reject);
-    req.setTimeout(6000, () => {
+    req.setTimeout(10000, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });
@@ -444,6 +604,15 @@ function makeApiRequest(serverUrl, apiPath, method = 'GET', token = '', bodyData
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+function formatBytes(bytes, decimals = 1) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 function deactivate() {

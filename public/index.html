@@ -136,17 +136,18 @@
     <!-- DASHBOARD VIEW (AUTHENTICATED ONLY) -->
     <section id="appView" class="hidden">
       
-      <!-- ⚡ Live Remote Insertion to VS Code (Mobile First Hero) -->
+      <!-- ⚡ Teleport Action Card (Live Remote Typing & Direct File Injection) -->
       <div class="vscode-remote-card">
         <div class="remote-header">
-          <div class="remote-badge">
-            <span class="live-dot-pulse"></span>
-            <span>LIVE TO VS CODE</span>
+          <div class="teleport-mode-toggle">
+            <button class="mode-tab active" id="tabModeLiveTyping">⚡ Live Kursor</button>
+            <button class="mode-tab" id="tabModeFileTeleport">📁 Teleport File</button>
           </div>
-          <span class="remote-hint hide-mobile">Ketik di sini, otomatis tertulis di file VS Code aktif</span>
+          <span class="remote-hint hide-mobile" id="teleportHintText">Ketik di HP, langsung tertulis di kursor VS Code</span>
         </div>
         
-        <div class="remote-input-container">
+        <!-- Tab 1: Live Remote Typing -->
+        <div id="panelLiveTyping" class="remote-input-container">
           <textarea id="remoteVsCodeInput" rows="2" placeholder="Paste / ketik kode di HP Anda untuk kirim ke kursor VS Code..."></textarea>
           <div class="remote-footer">
             <span class="char-count-text" id="remoteCharCount">0 chars</span>
@@ -155,6 +156,60 @@
               <span>Kirim ke VS Code</span>
             </button>
           </div>
+        </div>
+
+        <!-- Tab 2: Direct Workspace File Injection -->
+        <div id="panelFileTeleport" class="file-teleport-container hidden">
+          <div class="file-dropzone" id="fileDropzone">
+            <input type="file" id="fileTeleportInput" class="hidden-file-input">
+            <div class="dropzone-inner" id="btnTriggerFilePick">
+              <div class="drop-icon">📁</div>
+              <div class="drop-text">
+                <strong>Pilih / Drop File dari HP</strong>
+                <span>File langsung tersimpan ke folder project yang sedang dibuka di VS Code!</span>
+              </div>
+            </div>
+          </div>
+          <div class="file-upload-status hidden" id="fileUploadStatus">
+            <div class="upload-spin-icon">⏳</div>
+            <span id="fileUploadStatusText">Mengunggah file...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 📥 Teleported Files List (Sent between Laptop & Phone) -->
+      <div id="teleportFilesSection" class="teleport-files-card hidden">
+        <div class="files-card-head">
+          <div class="files-title">
+            <span>📥</span>
+            <h4>Berkas Lintas Perangkat</h4>
+            <span class="files-count-badge" id="teleportFilesCount">0</span>
+          </div>
+          <button id="btnRefreshFiles" class="btn-icon-refresh" title="Segarkan Berkas">🔄</button>
+        </div>
+        <div id="teleportFilesList" class="teleport-files-grid"></div>
+      </div>
+
+      <!-- 🔔 Reverse Teleport Floating Notification (When VS Code sends code to Phone) -->
+      <div id="reverseTeleportBanner" class="reverse-teleport-popup hidden">
+        <div class="popup-head">
+          <div class="popup-badge">
+            <span class="live-dot-pulse"></span>
+            <span id="reverseSenderLabel">⚡ DITERIMA DARI VS CODE</span>
+          </div>
+          <button id="btnCloseReverseBanner" class="popup-close">&times;</button>
+        </div>
+        <div class="popup-body">
+          <div class="popup-meta">
+            <span class="popup-filename" id="reverseFileName">main.js</span>
+            <span class="popup-chars" id="reverseCharCount">0 chars</span>
+          </div>
+          <pre class="popup-code-preview" id="reverseCodePreview"><code></code></pre>
+        </div>
+        <div class="popup-actions">
+          <button id="btnCopyReverseCode" class="btn btn-primary btn-block glow-accent">
+            <span>📋 Salin Kode ke HP</span>
+          </button>
         </div>
       </div>
 

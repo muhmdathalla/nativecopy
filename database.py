@@ -63,8 +63,21 @@ def init_db():
         created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+        file_data TEXT NOT NULL,
+        target TEXT NOT NULL DEFAULT 'workspace',
+        sender TEXT NOT NULL DEFAULT 'Mobile',
+        created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_snippets_user_id ON snippets(user_id);
     CREATE INDEX IF NOT EXISTS idx_snippets_pinned ON snippets(is_pinned DESC, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id, created_at DESC);
     """)
     conn.commit()
     conn.close()
@@ -347,5 +360,100 @@ def create_feedback(user_id: Optional[int], name: str, category: str, rating: in
         fb_id = cursor.lastrowid
         conn.commit()
         return {"id": fb_id, "success": True}
+    finally:
+        conn.close()
+
+# ----------------- File Teleportation -----------------
+
+def create_teleport_file(user_id: int, filename: str, file_size: int, mime_type: str, file_data: str, target: str = "workspace", sender: str = "Mobile") -> Dict[str, Any]:
+    now = int(time.time())
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO files (user_id, filename, file_size, mime_type, file_data, target, sender, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, filename.strip(), file_size, mime_type or 'application/octet-stream', file_data, target, sender, now)
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+        return {
+            "id": file_id,
+            "filename": filename.strip(),
+            "fileSize": file_size,
+            "mimeType": mime_type,
+            "target": target,
+            "sender": sender,
+            "createdAt": now
+        }
+    finally:
+        conn.close()
+
+def get_user_files(user_id: int, limit: int = 40) -> List[Dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """SELECT id, user_id, filename, file_size, mime_type, target, sender, created_at
+               FROM files WHERE user_id = ? ORDER BY created_at DESC LIMIT ?""",
+            (user_id, limit)
+        )
+        rows = cursor.fetchall()
+        return [{
+            "id": r["id"],
+            "userId": r["user_id"],
+            "filename": r["filename"],
+            "fileSize": r["file_size"],
+            "mimeType": r["mime_type"],
+            "target": r["target"],
+            "sender": r["sender"],
+            "createdAt": r["created_at"]
+        } for r in rows]
+    finally:
+        conn.close()
+
+def get_file_by_id(file_id: int, user_id: int, include_data: bool = True) -> Optional[Dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        if include_data:
+            cursor.execute(
+                """SELECT id, user_id, filename, file_size, mime_type, file_data, target, sender, created_at
+                   FROM files WHERE id = ? AND user_id = ?""",
+                (file_id, user_id)
+            )
+        else:
+            cursor.execute(
+                """SELECT id, user_id, filename, file_size, mime_type, target, sender, created_at
+                   FROM files WHERE id = ? AND user_id = ?""",
+                (file_id, user_id)
+            )
+        r = cursor.fetchone()
+        if not r:
+            return None
+        res = {
+            "id": r["id"],
+            "userId": r["user_id"],
+            "filename": r["filename"],
+            "fileSize": r["file_size"],
+            "mimeType": r["mime_type"],
+            "target": r["target"],
+            "sender": r["sender"],
+            "createdAt": r["created_at"]
+        }
+        if include_data:
+            res["fileData"] = r["file_data"]
+        return res
+    finally:
+        conn.close()
+
+def delete_teleport_file(file_id: int, user_id: int) -> bool:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM files WHERE id = ? AND user_id = ?", (file_id, user_id))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        return deleted
     finally:
         conn.close()

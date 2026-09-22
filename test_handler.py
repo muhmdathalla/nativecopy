@@ -133,7 +133,67 @@ class TestNativeCopyDirect(unittest.TestCase):
         self.assertEqual(res_empty["status"], 200)
         self.assertEqual(len(res_empty["json"]["snippets"]), 0)
 
-        # 9. Static File test (index.html)
+        # 9. VS Code Direct Live Insertion Test
+        res_insert = simulate_http_request("POST", "/api/vscode/insert", {
+            "content": "const token = 'xyz';",
+            "mode": "insert",
+            "sender": "Mobile Phone"
+        }, headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_insert["status"], 200)
+        self.assertTrue(res_insert["json"]["success"])
+
+        # 10. Reverse Selection Teleport Test (VS Code -> Phone)
+        res_teleport = simulate_http_request("POST", "/api/teleport/selection", {
+            "text": "function helloWorld() { return 42; }",
+            "language": "javascript",
+            "fileName": "main.js",
+            "sender": "VS Code"
+        }, headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_teleport["status"], 200)
+        self.assertTrue(res_teleport["json"]["success"])
+
+        # 11. File Upload / Teleport Test (Phone -> VS Code Directory)
+        import base64
+        dummy_file_bytes = b"console.log('injected file from phone');"
+        dummy_b64 = base64.b64encode(dummy_file_bytes).decode("utf-8")
+
+        res_upload = simulate_http_request("POST", "/api/files/upload", {
+            "filename": "helper.js",
+            "fileData": dummy_b64,
+            "fileSize": len(dummy_file_bytes),
+            "mimeType": "application/javascript",
+            "target": "workspace",
+            "sender": "iPhone 13 Pro"
+        }, headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_upload["status"], 201)
+        self.assertTrue(res_upload["json"]["success"])
+        file_id = res_upload["json"]["file"]["id"]
+
+        # 12. List Files Test
+        res_files = simulate_http_request("GET", "/api/files", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_files["status"], 200)
+        self.assertEqual(len(res_files["json"]["files"]), 1)
+        self.assertEqual(res_files["json"]["files"][0]["filename"], "helper.js")
+
+        # 13. Download File Test
+        res_dl = simulate_http_request("GET", f"/api/files/{file_id}/download", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_dl["status"], 200)
+        self.assertEqual(res_dl["body"], dummy_file_bytes)
+
+        # 14. Delete File Test
+        res_file_del = simulate_http_request("DELETE", f"/api/files/{file_id}", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_file_del["status"], 200)
+        self.assertTrue(res_file_del["json"]["success"])
+
+        # 15. Feedback Test
+        res_fb = simulate_http_request("POST", "/api/feedback", {
+            "message": "File injection works wonderfully!",
+            "category": "Feature Request",
+            "rating": 5
+        }, headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(res_fb["status"], 201)
+
+        # 16. Static File test (index.html)
         res_static = simulate_http_request("GET", "/")
         self.assertEqual(res_static["status"], 200)
         self.assertIn("NativeCopy", res_static["body"].decode("utf-8"))
