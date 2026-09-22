@@ -24,6 +24,8 @@ HOST = "0.0.0.0"
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
 
 connected_clients: Dict[int, Set[queue.Queue]] = {}
+recent_user_events: Dict[int, List[dict]] = {}
+event_counter = 0
 clients_lock = threading.Lock()
 
 def register_sse_client(user_id: int) -> queue.Queue:
@@ -42,9 +44,24 @@ def unregister_sse_client(user_id: int, q: queue.Queue):
                 del connected_clients[user_id]
 
 def broadcast_user_event(user_id: int, event_type: str, payload: dict):
-    message = json.dumps({"type": event_type, "payload": payload, "timestamp": int(time.time())})
+    global event_counter
     with clients_lock:
+        event_counter += 1
+        event_obj = {
+            "id": event_counter,
+            "type": event_type,
+            "payload": payload,
+            "timestamp": int(time.time() * 1000)
+        }
+        if user_id not in recent_user_events:
+            recent_user_events[user_id] = []
+        recent_user_events[user_id].append(event_obj)
+        if len(recent_user_events[user_id]) > 50:
+            recent_user_events[user_id] = recent_user_events[user_id][-50:]
+        
+        message = json.dumps(event_obj)
         queues = list(connected_clients.get(user_id, []))
+        
     for q in queues:
         try:
             q.put_nowait(message)
@@ -173,32 +190,59 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             snippets = database.get_user_snippets(user["id"], search, language)
             return self.send_json(200, {"snippets": snippets})
 
+        # Recent events replay for polling & reconnect recovery
+        if path == "/api/events/recent":
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            try:
+                since_id = int(qs.get("since_id", [0])[0])
+            except Exception:
+                since_id = 0
+            with clients_lock:
+                events = [e for e in recent_user_events.get(user["id"], []) if e["id"] > since_id]
+            return self.send_json(200, {"events": events, "serverTime": int(time.time() * 1000)})
+
         # Real-time SSE Stream (Used by Web, Mobile, and VS Code Extension)
         if path == "/api/events":
             user = self.get_authenticated_user()
             if not user:
                 return self.send_json(401, {"error": "Unauthorized"})
             
+            try:
+                since_id = int(qs.get("since_id", [0])[0])
+            except Exception:
+                since_id = 0
+
             client_queue = register_sse_client(user["id"])
             try:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
-                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Cache-Control", "no-cache, no-transform")
                 self.send_header("Connection", "keep-alive")
+                self.send_header("X-Accel-Buffering", "no")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
 
                 self.wfile.write(b": connected\n\n")
                 self.wfile.flush()
 
+                # Replay any missed events since client's last seen id
+                with clients_lock:
+                    missed = [e for e in recent_user_events.get(user["id"], []) if e["id"] > since_id]
+                for ev in missed:
+                    self.wfile.write(f"data: {json.dumps(ev)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+
                 while True:
                     try:
-                        msg = client_queue.get(timeout=15.0)
+                        msg = client_queue.get(timeout=3.0)
                         data = f"data: {msg}\n\n".encode("utf-8")
                         self.wfile.write(data)
                         self.wfile.flush()
                     except queue.Empty:
-                        self.wfile.write(b": keep-alive\n\n")
+                        # 3-second heartbeat keeps NAT/Proxy/Vercel/OS sockets alive
+                        self.wfile.write(b": ping\n\n")
                         self.wfile.flush()
             except Exception:
                 pass

@@ -1,6 +1,7 @@
 /**
  * NativeCopy VS Code Extension
- * Live Real-Time Cursor Insertion & Cloud Clipboard Synchronizer
+ * Enterprise Resilient Live Remote Cursor & Cloud Clipboard Sync
+ * Features: Sub-millisecond insertion, Dual SSE/Long-Poll Transport, Watchdog Keep-Alive, Event Replay Buffer
  */
 
 const vscode = require('vscode');
@@ -8,19 +9,28 @@ const https = require('https');
 const http = require('http');
 const url = require('url');
 
+// Persistent HTTP/HTTPS Agents with socket keep-alive
+const httpAgent = new http.Agent({ keepAlive: true, keepAliveMsecs: 3000, maxSockets: 5 });
+const httpsAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 3000, maxSockets: 5 });
+
 let sseRequest = null;
-let pollingTimer = null;
+let watchdogTimer = null;
+let reconnectTimer = null;
+let backupPollTimer = null;
 let statusBarItem = null;
 let isConnected = false;
+let lastEventId = 0;
+let processedEventIds = new Set();
+let consecutiveErrors = 0;
 
 function activate(context) {
-  console.log('[NativeCopy] Extension activated');
+  console.log('[NativeCopy] Extension activating with resilient sync engine...');
 
-  // 1. Create Status Bar Item
+  // 1. Status Bar Indicator
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItem.command = 'nativecopy.connect';
   context.subscriptions.push(statusBarItem);
-  updateStatusBar(false, 'Disconnected');
+  updateStatusBar('disconnected', 'Disconnected');
   statusBarItem.show();
 
   // 2. Register Commands
@@ -37,7 +47,7 @@ function activate(context) {
     if (serverUrl === undefined) return;
 
     const token = await vscode.window.showInputBox({
-      prompt: 'Enter your NativeCopy Account Token (get it from web dashboard profile/login):',
+      prompt: 'Enter your NativeCopy Account Token (get it from web dashboard):',
       value: currentToken,
       placeHolder: 'Paste token here...',
       password: true
@@ -47,7 +57,7 @@ function activate(context) {
     await config.update('serverUrl', serverUrl.trim().replace(/\/+$/, ''), vscode.ConfigurationTarget.Global);
     await config.update('token', token.trim(), vscode.ConfigurationTarget.Global);
 
-    vscode.window.showInformationMessage('NativeCopy settings saved! Reconnecting...');
+    vscode.window.showInformationMessage('⚡ NativeCopy settings updated! Connecting...');
     startConnection();
   });
 
@@ -66,11 +76,11 @@ function activate(context) {
     }
 
     const config = vscode.workspace.getConfiguration('nativecopy');
-    const serverUrl = config.get('serverUrl') || 'https://nativecopy.vercel.app';
+    const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
     const token = config.get('token') || '';
 
     if (!token) {
-      vscode.window.showErrorMessage('Please connect your NativeCopy account first (Ctrl+Shift+P > NativeCopy: Connect).');
+      vscode.window.showErrorMessage('Please connect your NativeCopy account first (Cmd+Shift+P > NativeCopy: Connect).');
       return;
     }
 
@@ -92,7 +102,7 @@ function activate(context) {
 
   const insertLatestCmd = vscode.commands.registerCommand('nativecopy.insertLatest', async () => {
     const config = vscode.workspace.getConfiguration('nativecopy');
-    const serverUrl = config.get('serverUrl') || 'https://nativecopy.vercel.app';
+    const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
     const token = config.get('token') || '';
 
     if (!token) {
@@ -133,15 +143,19 @@ function activate(context) {
   startConnection();
 }
 
-function updateStatusBar(connected, statusText) {
+function updateStatusBar(status, label) {
   if (!statusBarItem) return;
-  if (connected) {
+  if (status === 'live') {
     statusBarItem.text = `$(zap) NativeCopy: Live`;
-    statusBarItem.tooltip = `NativeCopy Live Remote Typing Connected\nClick to change settings`;
+    statusBarItem.tooltip = `⚡ NativeCopy: Zero-Latency Live Remote Typing Active\nClick to configure`;
+    statusBarItem.backgroundColor = undefined;
+  } else if (status === 'connecting') {
+    statusBarItem.text = `$(sync~spin) NativeCopy: Syncing...`;
+    statusBarItem.tooltip = `Connecting to NativeCopy event stream...`;
     statusBarItem.backgroundColor = undefined;
   } else {
-    statusBarItem.text = `$(plug) NativeCopy: ${statusText}`;
-    statusBarItem.tooltip = `NativeCopy Disconnected - Click to configure account token`;
+    statusBarItem.text = `$(plug) NativeCopy: ${label || 'Disconnected'}`;
+    statusBarItem.tooltip = `Click to connect NativeCopy account`;
     statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
   }
 }
@@ -149,7 +163,7 @@ function updateStatusBar(connected, statusText) {
 function insertTextIntoActiveEditor(text, label = 'Mobile stream') {
   const config = vscode.workspace.getConfiguration('nativecopy');
   if (!config.get('autoInsert', true)) {
-    console.log('[NativeCopy] Auto-insert disabled in settings, skipping.');
+    console.log('[NativeCopy] Auto-insert disabled in settings.');
     return;
   }
 
@@ -163,11 +177,10 @@ function insertTextIntoActiveEditor(text, label = 'Mobile stream') {
       }
     }).then(success => {
       if (success) {
-        vscode.window.setStatusBarMessage(`⚡ NativeCopy: Inserted text at active cursor (${text.length} chars)`, 4000);
+        vscode.window.setStatusBarMessage(`⚡ NativeCopy: Inserted text (${text.length} chars from ${label})`, 4000);
       }
     });
   } else {
-    // If no file open, open a new untitled document with the text
     vscode.workspace.openTextDocument({ content: text, language: 'plaintext' }).then(doc => {
       vscode.window.showTextDocument(doc);
       vscode.window.setStatusBarMessage(`⚡ NativeCopy: Opened text from ${label} in new tab`, 4000);
@@ -175,34 +188,60 @@ function insertTextIntoActiveEditor(text, label = 'Mobile stream') {
   }
 }
 
+function resetWatchdog() {
+  if (watchdogTimer) clearTimeout(watchdogTimer);
+  // If no ping/data received within 12 seconds, proactively reset and reconnect
+  watchdogTimer = setTimeout(() => {
+    console.log('[NativeCopy] Watchdog heartbeat timeout. Reconnecting stream...');
+    if (sseRequest) {
+      try { sseRequest.destroy(); } catch (e) {}
+      sseRequest = null;
+    }
+    triggerReconnect(0);
+  }, 12000);
+}
+
+function triggerReconnect(delayMs = 0) {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    startConnection();
+  }, delayMs);
+}
+
 function startConnection() {
-  stopConnection();
+  stopConnection(false);
 
   const config = vscode.workspace.getConfiguration('nativecopy');
   const serverUrl = (config.get('serverUrl') || 'https://nativecopy.vercel.app').replace(/\/+$/, '');
   const token = config.get('token') || '';
 
   if (!token) {
-    updateStatusBar(false, 'Set Token');
+    updateStatusBar('disconnected', 'Set Token');
     return;
   }
 
-  updateStatusBar(false, 'Connecting...');
+  updateStatusBar('connecting', 'Connecting...');
 
-  // Start Real-Time SSE Stream
+  // Start Real-Time SSE Stream with Socket Keep-Alive & Replay Buffer
   try {
-    const parsed = url.parse(`${serverUrl}/api/events?token=${encodeURIComponent(token)}`);
-    const protocol = parsed.protocol === 'https:' ? https : http;
+    const streamUrl = `${serverUrl}/api/events?token=${encodeURIComponent(token)}&since_id=${lastEventId}`;
+    const parsed = url.parse(streamUrl);
+    const isHttps = parsed.protocol === 'https:';
+    const protocol = isHttps ? https : http;
+    const agent = isHttps ? httpsAgent : httpAgent;
 
     const reqOptions = {
       hostname: parsed.hostname,
-      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      port: parsed.port || (isHttps ? 443 : 80),
       path: parsed.path,
       method: 'GET',
+      agent: agent,
       headers: {
         'Accept': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'NativeCopy-VSCode/1.0.0'
       },
       timeout: 0
     };
@@ -210,22 +249,27 @@ function startConnection() {
     sseRequest = protocol.request(reqOptions, res => {
       if (res.statusCode === 200) {
         isConnected = true;
-        updateStatusBar(true, 'Live');
-        console.log('[NativeCopy] Connected to SSE event stream.');
+        consecutiveErrors = 0;
+        updateStatusBar('live', 'Live');
+        resetWatchdog();
+        stopBackupPoll();
 
         let buffer = '';
         res.on('data', chunk => {
+          resetWatchdog();
           buffer += chunk.toString();
           const lines = buffer.split('\n\n');
-          buffer = lines.pop(); // Keep partial line
+          buffer = lines.pop();
 
           for (const block of lines) {
             for (const line of block.split('\n')) {
               if (line.startsWith('data: ')) {
                 try {
                   const rawJson = line.substring(6).trim();
-                  const eventData = JSON.parse(rawJson);
-                  handleIncomingEvent(eventData);
+                  if (rawJson && rawJson !== '{}') {
+                    const eventData = JSON.parse(rawJson);
+                    handleIncomingEvent(eventData);
+                  }
                 } catch (e) {}
               }
             }
@@ -234,43 +278,89 @@ function startConnection() {
 
         res.on('end', () => {
           isConnected = false;
-          updateStatusBar(false, 'Reconnecting...');
-          setTimeout(startConnection, 4000);
+          // Normal proxy stream rotation (e.g. Vercel 15s limit) -> reconnect instantly with 50ms delay
+          triggerReconnect(50);
         });
+
+        res.on('close', () => {
+          if (isConnected) {
+            isConnected = false;
+            triggerReconnect(100);
+          }
+        });
+      } else if (res.statusCode === 401 || res.statusCode === 403) {
+        isConnected = false;
+        updateStatusBar('disconnected', 'Invalid Token');
       } else {
         isConnected = false;
-        updateStatusBar(false, 'Auth Error');
+        consecutiveErrors++;
+        const backoff = Math.min(1000 * Math.pow(1.5, consecutiveErrors), 8000);
+        updateStatusBar('disconnected', 'Reconnecting...');
+        triggerReconnect(backoff);
+        startBackupPoll(serverUrl, token);
       }
     });
 
+    sseRequest.on('socket', socket => {
+      socket.setKeepAlive(true, 3000);
+      socket.setNoDelay(true);
+    });
+
     sseRequest.on('error', err => {
-      console.log('[NativeCopy] SSE error:', err.message);
+      console.log('[NativeCopy] Stream error:', err.message);
       isConnected = false;
-      updateStatusBar(false, 'Offline');
+      consecutiveErrors++;
+      const backoff = Math.min(1000 * Math.pow(1.5, consecutiveErrors), 8000);
+      updateStatusBar('disconnected', 'Offline');
+      triggerReconnect(backoff);
+      startBackupPoll(serverUrl, token);
     });
 
     sseRequest.end();
   } catch (err) {
-    console.error('[NativeCopy] Failed to connect:', err);
-    updateStatusBar(false, 'Offline');
+    console.error('[NativeCopy] Connect failure:', err);
+    updateStatusBar('disconnected', 'Error');
+    startBackupPoll(serverUrl, token);
   }
-
-  // Backup auto-reconnect timer
-  pollingTimer = setInterval(() => {
-    if (!isConnected) {
-      startConnection();
-    }
-  }, 10000);
 }
 
-function stopConnection() {
+function startBackupPoll(serverUrl, token) {
+  if (backupPollTimer) return;
+  backupPollTimer = setInterval(async () => {
+    if (isConnected) return;
+    try {
+      const res = await makeApiRequest(serverUrl, `/api/events/recent?since_id=${lastEventId}`, 'GET', token);
+      if (res && res.events && Array.isArray(res.events)) {
+        for (const ev of res.events) {
+          handleIncomingEvent(ev);
+        }
+      }
+    } catch (e) {}
+  }, 1500);
+}
+
+function stopBackupPoll() {
+  if (backupPollTimer) {
+    clearInterval(backupPollTimer);
+    backupPollTimer = null;
+  }
+}
+
+function stopConnection(fullStop = true) {
+  if (watchdogTimer) {
+    clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+  }
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (sseRequest) {
-    try { sseRequest.abort(); } catch (e) {}
+    try { sseRequest.destroy(); } catch (e) {}
     sseRequest = null;
   }
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
+  if (fullStop) {
+    stopBackupPoll();
   }
   isConnected = false;
 }
@@ -278,7 +368,20 @@ function stopConnection() {
 function handleIncomingEvent(event) {
   if (!event || !event.type) return;
 
-  // 1. Direct Live Remote Typing Event (From Phone or Web Live Paste Button)
+  // Track event ID & deduplicate
+  if (event.id) {
+    if (event.id <= lastEventId || processedEventIds.has(event.id)) {
+      return; // Already processed
+    }
+    lastEventId = Math.max(lastEventId, event.id);
+    processedEventIds.add(event.id);
+    if (processedEventIds.size > 200) {
+      processedEventIds.clear();
+      processedEventIds.add(event.id);
+    }
+  }
+
+  // 1. Direct Live Remote Typing Event (From Mobile or Web)
   if (event.type === 'vscode_remote_insert') {
     const payload = event.payload || {};
     const content = payload.content || '';
@@ -287,7 +390,7 @@ function handleIncomingEvent(event) {
     }
   }
 
-  // 2. Snippet Created
+  // 2. Snippet Created Event
   if (event.type === 'snippet_created') {
     const snip = event.payload || {};
     vscode.window.setStatusBarMessage(`⚡ NativeCopy: New snippet created: "${snip.title}"`, 3000);
@@ -297,17 +400,21 @@ function handleIncomingEvent(event) {
 function makeApiRequest(serverUrl, apiPath, method = 'GET', token = '', bodyData = null) {
   return new Promise((resolve, reject) => {
     const parsed = url.parse(`${serverUrl}${apiPath}`);
-    const protocol = parsed.protocol === 'https:' ? https : http;
+    const isHttps = parsed.protocol === 'https:';
+    const protocol = isHttps ? https : http;
+    const agent = isHttps ? httpsAgent : httpAgent;
 
     const payload = bodyData ? JSON.stringify(bodyData) : null;
     const options = {
       hostname: parsed.hostname,
-      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      port: parsed.port || (isHttps ? 443 : 80),
       path: parsed.path,
       method: method,
+      agent: agent,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'NativeCopy-VSCode/1.0.0'
       }
     };
 
@@ -329,13 +436,18 @@ function makeApiRequest(serverUrl, apiPath, method = 'GET', token = '', bodyData
     });
 
     req.on('error', reject);
+    req.setTimeout(6000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
     if (payload) req.write(payload);
     req.end();
   });
 }
 
 function deactivate() {
-  stopConnection();
+  stopConnection(true);
 }
 
 module.exports = {
