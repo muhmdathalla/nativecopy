@@ -1,5 +1,6 @@
 """
 NativeCopy HTTP Server & Real-Time Sync
+Supports Web Dashboard, Mobile Sync, and VS Code Active Editor Live Insertion.
 """
 
 import http.server
@@ -172,6 +173,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             snippets = database.get_user_snippets(user["id"], search, language)
             return self.send_json(200, {"snippets": snippets})
 
+        # Real-time SSE Stream (Used by Web, Mobile, and VS Code Extension)
         if path == "/api/events":
             user = self.get_authenticated_user()
             if not user:
@@ -210,6 +212,42 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
+        # 1. VS Code Direct Live Insertion Endpoint
+        if path == "/api/vscode/insert":
+            user = self.get_authenticated_user()
+            if not user:
+                return self.send_json(401, {"error": "Unauthorized"})
+            
+            data = self.parse_json_body() or {}
+            content = data.get("content", "")
+            if not str(content):
+                return self.send_json(400, {"error": "Konten tidak boleh kosong."})
+            
+            mode = data.get("mode", "insert") # insert, replace, append
+            
+            # Broadcast direct live insert event to connected VS Code instances
+            payload = {
+                "content": str(content),
+                "mode": mode,
+                "timestamp": int(time.time()),
+                "sender": data.get("sender", "Mobile/Web")
+            }
+            broadcast_user_event(user["id"], "vscode_remote_insert", payload)
+
+            # Also optionally save as snippet if requested
+            if data.get("saveSnippet", False):
+                title = data.get("title", "Remote VS Code Stream")
+                lang = data.get("language", "plaintext")
+                snip = database.create_snippet(user["id"], title, str(content), lang, False)
+                broadcast_user_event(user["id"], "snippet_created", snip)
+
+            return self.send_json(200, {
+                "success": True,
+                "message": "⚡ Teks berhasil dikirim langsung ke kursor aktif VS Code!",
+                "payload": payload
+            })
+
+        # 2. Feedback
         if path == "/api/feedback":
             data = self.parse_json_body() or {}
             message = data.get("message", "").strip()
@@ -225,6 +263,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             res = database.create_feedback(user_id, name, category, rating, message)
             return self.send_json(201, {"message": "Terima kasih atas saran & kritik kamu!", "feedback": res})
 
+        # 3. Register
         if path == "/api/auth/register":
             data = self.parse_json_body()
             if not data or "username" not in data or "password" not in data:
@@ -240,6 +279,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 "user": user_data
             }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=31536000; SameSite=Lax"})
 
+        # 4. Login
         if path == "/api/auth/login":
             data = self.parse_json_body()
             if not data or "username" not in data or "password" not in data:
@@ -255,6 +295,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 "user": user
             }, headers={"Set-Cookie": f"session_token={token}; Path=/; Max-Age=31536000; SameSite=Lax"})
 
+        # 5. Logout
         if path == "/api/auth/logout":
             return self.send_json(200, {
                 "message": "Logged out successfully"
@@ -264,6 +305,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         if not user:
             return self.send_json(401, {"error": "Unauthorized"})
 
+        # 6. Create Snippet
         if path == "/api/snippets":
             data = self.parse_json_body()
             if not data or "content" not in data or not str(data["content"]).strip():
@@ -284,6 +326,7 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
             broadcast_user_event(user["id"], "snippet_created", snippet)
             return self.send_json(201, {"snippet": snippet})
 
+        # 7. Toggle Pin
         if path.startswith("/api/snippets/") and path.endswith("/pin"):
             parts = path.strip("/").split("/")
             if len(parts) == 4 and parts[1] == "snippets" and parts[3] == "pin":

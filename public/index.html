@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>NativeCopy // Enterprise Cross-Device Workspace</title>
+  <title>NativeCopy // Live Remote VS Code & Cross-Device Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -69,7 +69,7 @@
         </div>
         <div class="brand-meta">
           <div class="brand-title">Native<span>Copy</span></div>
-          <span class="brand-corp-tag">ENTERPRISE</span>
+          <span class="brand-corp-tag">VS CODE LIVE</span>
         </div>
       </div>
 
@@ -98,6 +98,12 @@
           <span id="langLabel" class="hide-mobile font-mono">ID</span>
         </button>
 
+        <!-- VS Code Setup Modal Trigger -->
+        <button class="ctrl-btn" id="btnOpenVsCodeSetup" title="Panduan & Token VS Code Extension">
+          <span style="color: #06b6d4;">⚡</span>
+          <span class="hide-mobile">VS Code Sync</span>
+        </button>
+
         <!-- Feedback (Saran & Kritik) Button -->
         <button class="ctrl-btn" id="btnOpenFeedback" title="Saran & Kritik">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -116,7 +122,7 @@
           <span class="hide-mobile" data-i18n="about">About</span>
         </button>
 
-        <!-- Auth Slot (Login or User tag) -->
+        <!-- Auth Slot -->
         <div id="navAuthSlot"></div>
 
       </div>
@@ -130,6 +136,25 @@
     <!-- DASHBOARD VIEW (AUTHENTICATED ONLY) -->
     <section id="appView" class="hidden">
       
+      <!-- ⚡ Live Remote Insertion to VS Code Box (Hero Feature) -->
+      <div class="vscode-remote-box">
+        <div class="remote-head">
+          <div class="remote-title">
+            <span class="pulse-live"></span>
+            <strong>⚡ Live Remote Insert to VS Code Cursor</strong>
+          </div>
+          <span class="remote-sub">Ketik/paste di HP, otomatis tertulis di file VS Code yang sedang aktif!</span>
+        </div>
+        <div class="remote-body">
+          <textarea id="remoteVsCodeInput" rows="2" placeholder="Paste / ketik kode di sini dari HP untuk langsung menyisipkannya ke kursor VS Code..."></textarea>
+          <div class="remote-actions">
+            <button id="btnSendToVsCode" class="btn btn-primary glow-accent">
+              <span>⚡ Kirim Langsung ke Kursor VS Code</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats / Productivity Bar -->
       <div class="stats-overview">
         <div class="stat-card">
@@ -145,10 +170,10 @@
           <div class="stat-num" id="statPinned">0</div>
         </div>
         <div class="stat-card">
-          <span class="stat-label" data-i18n="syncEngine">Sync Engine</span>
+          <span class="stat-label">VS Code Bridge</span>
           <div class="stat-status">
             <span class="status-pulse"></span>
-            <span>Real-time Active</span>
+            <span>Live Stream Ready</span>
           </div>
         </div>
       </div>
@@ -157,7 +182,7 @@
       <div class="hero-actions-bar">
         <div class="hero-title-group">
           <h2 data-i18n="workspaceTitle">Workspace Clipboard Lintas Perangkat</h2>
-          <p data-i18n="workspaceSubtitle">Potongan kode & teks tersinkronisasi otomatis di seluruh komputer dan gadget kamu.</p>
+          <p data-i18n="workspaceSubtitle">Potongan kode & teks tersinkronisasi otomatis di seluruh komputer dan gadget Anda.</p>
         </div>
         <div class="hero-btn-group">
           <button id="btnExportAll" class="btn btn-secondary" title="Export Backup">
@@ -315,6 +340,50 @@
     </div>
   </div>
 
+  <!-- MODAL: VS CODE EXTENSION SETUP & TOKEN -->
+  <div id="modalVsCode" class="modal-overlay hidden">
+    <div class="modal-window modal-wide">
+      <div class="modal-top">
+        <div class="modal-heading">
+          <span>⚡</span>
+          <h3>Integrasi VS Code Extension</h3>
+        </div>
+        <button id="btnCloseVsCodeModal" class="close-x-btn">&times;</button>
+      </div>
+
+      <div class="modal-content-form">
+        <div class="about-hero-box">
+          <h4>🚀 Remote Live Typing Langsung ke VS Code</h4>
+          <p>Ketik atau salin teks dari HP / Browser Anda, dan teks akan langsung otomatis tertulis pada file yang sedang Anda buka di VS Code komputer Anda!</p>
+        </div>
+
+        <div class="field-item">
+          <label>Token Akun Anda (Gunakan di VS Code):</label>
+          <div class="prefix-input">
+            <input type="text" id="userTokenDisplay" readonly value="Login terlebih dahulu">
+            <button type="button" id="btnCopyUserToken" class="btn btn-secondary" style="height:30px; padding:0 8px; font-size:11px;">Salin Token</button>
+          </div>
+        </div>
+
+        <div class="about-hero-box" style="background:var(--bg-input);">
+          <h4 style="font-size:13px; margin-bottom:6px;">📦 Cara Pasang di Komputer / Laptop Lain:</h4>
+          <ol style="font-size:12px; color:var(--text-muted); padding-left:18px; line-height:1.7;">
+            <li>Jalankan perintah berikut di terminal komputer tujuan:
+              <br><code style="background:var(--bg-surface); padding:2px 6px; border-radius:4px; color:#34d399;">git clone https://github.com/muhmdathalla/nativecopy.git &amp;&amp; ./nativecopy/install-extension.sh</code> (untuk Windows: jalankan <code>install-extension.bat</code>).
+            </li>
+            <li>Buka / restart VS Code Anda.</li>
+            <li>Tekan <kbd>Ctrl+Shift+P</kbd> (atau <kbd>Cmd+Shift+P</kbd> di Mac), ketik <strong>"NativeCopy: Connect"</strong>, lalu paste token akun Anda.</li>
+            <li>Selesai! Status di pojok kanan bawah VS Code akan berubah menjadi <strong>"⚡ NativeCopy: Live"</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="modal-bottom-actions">
+          <button type="button" id="btnCloseVsCodeModalBottom" class="btn btn-secondary">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: SARAN & KRITIK (FEEDBACK) -->
   <div id="modalFeedback" class="modal-overlay hidden">
     <div class="modal-window">
@@ -433,15 +502,15 @@
       <div class="modal-content-form about-body">
         <div class="about-hero-box">
           <h4>NativeCopy Enterprise Suite</h4>
-          <p>Sistem manajemen clipboard & code sharing lintas perangkat berkinerja tinggi, didesain untuk produktivitas pengembang software dan tim IT modern.</p>
+          <p>Sistem manajemen clipboard & code sharing lintas perangkat berkinerja tinggi dengan integrasi langsung ke editor VS Code.</p>
         </div>
 
         <div class="features-2x2">
           <div class="feat-box">
             <span class="feat-emoji">⚡</span>
             <div>
-              <strong>Sub-Millisecond SSE Sync</strong>
-              <p>Broadcast data instan tanpa delay polling berlebih.</p>
+              <strong>VS Code Live Insertion</strong>
+              <p>Ketik di HP, teks langsung tertulis di kursor aktif VS Code.</p>
             </div>
           </div>
           <div class="feat-box">
@@ -462,7 +531,7 @@
             <span class="feat-emoji">🎨</span>
             <div>
               <strong>Dynamic Multi-Theme Canvas</strong>
-              <p>Animasi interaktif yang menyesuaikan estetika tema perusahaan Anda.</p>
+              <p>Animasi interaktif yang menyesuaikan estetika tema pilihan Anda.</p>
             </div>
           </div>
         </div>

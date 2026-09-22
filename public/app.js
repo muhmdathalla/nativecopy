@@ -1,6 +1,6 @@
 /**
  * NativeCopy Enterprise Suite
- * Advanced Cross-Device Workspace & Productivity Engine
+ * Advanced Cross-Device Workspace & VS Code Live Remote Typing Engine
  */
 
 (function () {
@@ -117,6 +117,7 @@
     btnLangToggle: document.getElementById('btnLangToggle'),
     langFlag: document.getElementById('langFlag'),
     langLabel: document.getElementById('langLabel'),
+    btnOpenVsCodeSetup: document.getElementById('btnOpenVsCodeSetup'),
     btnOpenFeedback: document.getElementById('btnOpenFeedback'),
     btnOpenAbout: document.getElementById('btnOpenAbout'),
     btnOpenCurrency: document.getElementById('btnOpenCurrency'),
@@ -127,6 +128,9 @@
     clockNYC: document.getElementById('clockNYC'),
     clockIST: document.getElementById('clockIST'),
     clockMED: document.getElementById('clockMED'),
+    // VS Code Remote Box
+    remoteVsCodeInput: document.getElementById('remoteVsCodeInput'),
+    btnSendToVsCode: document.getElementById('btnSendToVsCode'),
     // Stats
     statCount: document.getElementById('statCount'),
     statChars: document.getElementById('statChars'),
@@ -167,6 +171,12 @@
     // About Modal
     modalAbout: document.getElementById('modalAbout'),
     btnCloseAbout: document.getElementById('btnCloseAbout'),
+    // VS Code Setup Modal
+    modalVsCode: document.getElementById('modalVsCode'),
+    btnCloseVsCodeModal: document.getElementById('btnCloseVsCodeModal'),
+    btnCloseVsCodeModalBottom: document.getElementById('btnCloseVsCodeModalBottom'),
+    userTokenDisplay: document.getElementById('userTokenDisplay'),
+    btnCopyUserToken: document.getElementById('btnCopyUserToken'),
     // Currency Modal
     modalCurrency: document.getElementById('modalCurrency'),
     btnCloseCurrency: document.getElementById('btnCloseCurrency'),
@@ -189,7 +199,6 @@
   };
 
   // --- Dynamic Particle Background Canvas ---
-  let canvasAnimationId;
   function initDynamicBackgroundCanvas() {
     const canvas = el.bgCanvas;
     if (!canvas) return;
@@ -239,7 +248,6 @@
       ctx.clearRect(0, 0, width, height);
       const colors = getThemeCanvasColors();
 
-      // Subtle Grid Dots
       ctx.fillStyle = colors.grid;
       for (let x = 0; x < width; x += 40) {
         for (let y = 0; y < height; y += 40) {
@@ -247,7 +255,6 @@
         }
       }
 
-      // Particles & Connecting Lines
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.x += p.vx;
@@ -277,7 +284,7 @@
         }
       }
 
-      canvasAnimationId = requestAnimationFrame(render);
+      requestAnimationFrame(render);
     }
 
     render();
@@ -477,11 +484,40 @@
     }
   }
 
+  // --- Send Direct to Active VS Code Cursor ---
+  async function sendDirectToVsCode(content) {
+    if (!content || !content.trim()) {
+      showToast('Ketik atau paste teks terlebih dahulu', 'error');
+      return;
+    }
+    if (!state.token) {
+      showToast('Silakan login terlebih dahulu', 'error');
+      return;
+    }
+
+    const res = await api('/api/vscode/insert', {
+      method: 'POST',
+      body: JSON.stringify({
+        content: content,
+        mode: 'insert',
+        sender: 'Mobile/Web Dashboard'
+      })
+    });
+
+    if (res.ok) {
+      showToast('⚡ Terkirim! Teks otomatis tertulis di kursor aktif VS Code Anda.', 'success', 3500);
+    } else {
+      showToast(res.data?.error || 'Gagal mengirim ke VS Code', 'error');
+    }
+  }
+
   // --- Auth Flow ---
   function updateAuthUI() {
     if (state.user && state.token) {
       el.authView.classList.add('hidden');
       el.appView.classList.remove('hidden');
+
+      el.userTokenDisplay.value = state.token;
 
       el.navAuthSlot.innerHTML = `
         <div class="user-tag">
@@ -503,6 +539,7 @@
       el.appView.classList.add('hidden');
       el.authView.classList.remove('hidden');
       el.navAuthSlot.innerHTML = '';
+      el.userTokenDisplay.value = 'Silakan login terlebih dahulu untuk mendapatkan token';
       stopSync();
     }
   }
@@ -635,7 +672,6 @@
       return true;
     });
 
-    // Update stats
     el.countAll.textContent = state.snippets.length;
     el.countPinned.textContent = state.snippets.filter(s => s.isPinned).length;
     el.statCount.textContent = state.snippets.length;
@@ -686,8 +722,11 @@
         <div class="card-code"><pre><code class="language-${escapeHtml(s.language)}">${escapeHtml(s.content)}</code></pre></div>
 
         <div class="card-footer">
-          <span class="char-info">${s.content.length} chars</span>
-          <button class="btn-copy" data-id="${s.id}">
+          <button class="btn-copy btn-send-vscode" data-id="${s.id}" title="Kirim langsung ke file VS Code aktif" style="border-color:#06b6d4; color:#22d3ee;">
+            <span>⚡ To VS Code</span>
+          </button>
+
+          <button class="btn-copy btn-card-copy" data-id="${s.id}">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -705,11 +744,19 @@
     }
 
     // Attach card action listeners
-    el.snippetsGrid.querySelectorAll('.btn-copy').forEach(btn => {
+    el.snippetsGrid.querySelectorAll('.btn-card-copy').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = parseInt(btn.getAttribute('data-id'), 10);
         const snip = state.snippets.find(s => s.id === id);
         if (snip) copyToClipboard(snip.content, btn);
+      });
+    });
+
+    el.snippetsGrid.querySelectorAll('.btn-send-vscode').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.getAttribute('data-id'), 10);
+        const snip = state.snippets.find(s => s.id === id);
+        if (snip) sendDirectToVsCode(snip.content);
       });
     });
 
@@ -840,7 +887,6 @@
 
   // --- Feedback (Saran & Kritik) Engine ---
   function setupFeedbackSystem() {
-    // Star rating
     const stars = el.starRating.querySelectorAll('.star');
     const ratingLabels = ['1 / 5 - Sangat Kurang', '2 / 5 - Perlu Peningkatan', '3 / 5 - Cukup', '4 / 5 - Puas', '5 / 5 - Sangat Puas'];
 
@@ -887,7 +933,6 @@
 
   // --- Setup Listeners ---
   function setupEventListeners() {
-    // Clocks timer
     updateWorldClocks();
     setInterval(updateWorldClocks, 1000);
 
@@ -912,6 +957,26 @@
     // Language Toggle
     el.btnLangToggle.addEventListener('click', () => {
       setLanguage(state.lang === 'id' ? 'en' : 'id');
+    });
+
+    // Send to VS Code live button
+    el.btnSendToVsCode.addEventListener('click', () => {
+      sendDirectToVsCode(el.remoteVsCodeInput.value);
+    });
+
+    // VS Code Setup Modal
+    el.btnOpenVsCodeSetup.addEventListener('click', () => {
+      el.modalVsCode.classList.remove('hidden');
+    });
+    el.btnCloseVsCodeModal.addEventListener('click', () => el.modalVsCode.classList.add('hidden'));
+    el.btnCloseVsCodeModalBottom.addEventListener('click', () => el.modalVsCode.classList.add('hidden'));
+
+    el.btnCopyUserToken.addEventListener('click', () => {
+      if (state.token) {
+        copyToClipboard(state.token, el.btnCopyUserToken);
+      } else {
+        showToast('Silakan login terlebih dahulu untuk mendapatkan token akun', 'error');
+      }
     });
 
     // Currency Modal
@@ -985,6 +1050,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeSnippetModal();
+        el.modalVsCode.classList.add('hidden');
         el.modalCurrency.classList.add('hidden');
         el.modalFeedback.classList.add('hidden');
         el.modalAbout.classList.add('hidden');
@@ -993,7 +1059,7 @@
     });
 
     // Backdrop click closes modal
-    [el.modalSnippet, el.modalCurrency, el.modalFeedback, el.modalAbout].forEach(m => {
+    [el.modalSnippet, el.modalVsCode, el.modalCurrency, el.modalFeedback, el.modalAbout].forEach(m => {
       m.addEventListener('click', (e) => {
         if (e.target === m) m.classList.add('hidden');
       });

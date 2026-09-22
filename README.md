@@ -1,71 +1,76 @@
-# 📋 NativeCopy - Cross-Device Clipboard & Code Sync (LAN)
+# 📋 NativeCopy Enterprise // Live Remote VS Code & Cloud Clipboard Sync
 
-NativeCopy adalah aplikasi web clipboard & code snippet manager yang dirancang khusus untuk memindahkan potongan kode, teks perintah terminal, SQL query, atau catatan antar perangkat (misalnya antara Laptop dan PC Lab / Smartphone) di jaringan lokal (Wi-Fi/LAN yang sama) secara **instan (real-time)** dan **aman**.
-
----
-
-## ✨ Fitur Utama
-
-- ⚡ **Real-Time Live Sync (SSE)**: Setiap kali kamu copy-paste atau simpan snippet di laptop, browser di PC Lab langsung terupdate otomatis tanpa perlu refresh!
-- 🔒 **Sistem Akun & Keamanan**:
-  - Hash password menggunakan **PBKDF2-HMAC-SHA256** (100.000 iterasi + unique cryptographic salt).
-  - Session token terenkripsi.
-- 🎨 **Developer Aesthetic UI**:
-  - Dark Mode modern terinspirasi oleh *VS Code & Linear*.
-  - Syntax Highlighting untuk beragam bahasa (JavaScript, Python, Bash, SQL, JSON, HTML, CSS, PHP, C++, Markdown, Plain Text).
-  - Nomor baris & auto indentation (dukungan tombol `Tab`).
-- 🚀 **1-Click Copy**: Tombol salin cepat dengan notifikasi toast dan fallback otomatis untuk jaringan LAN tanpa HTTPS.
-- ⌨️ **Global Keyboard Shortcuts**:
-  - `Ctrl + V` / `Cmd + V`: Tekan di mana saja pada dashboard untuk langsung membuka form simpan snippet.
-  - `/` atau `Ctrl + K`: Fokus cepat ke kolom pencarian snippet.
-  - `Escape`: Menutup modal aktif.
-- 📌 **Pin & Filter & Search**: Sematkan snippet penting di atas, filter berdasarkan kategori bahasa, dan pencarian instan.
-- 🌐 **Auto LAN IP Discovery**: Menampilkan alamat IP lokal perangkat secara otomatis agar PC Lab tinggal membuka alamat tersebut.
-- 📦 **Zero External Dependency**: Menggunakan Python 3 Standard Library + SQLite3 (tidak butuh instalasi library pihak ketiga, langsung jalan di sistem operasi apa saja).
+NativeCopy Enterprise adalah sistem sinkronisasi clipboard & code editor lintas perangkat berkecepatan tinggi dengan integrasi **Live Remote Insertion** langsung ke editor **VS Code**.
 
 ---
 
-## 🚀 Cara Menjalankan
+## ⚡ Fitur Utama
 
-### 1. Jalankan di Laptop (Host):
-Buka terminal di folder project ini dan jalankan:
+- 🚀 **Live Remote Typing to VS Code**: Salin/ketik teks atau kode dari HP Anda, tekan tombol *"⚡ Send to VS Code"*, maka teks tersebut **langsung otomatis tertulis pada file yang sedang dibuka di kursor aktif VS Code Anda!**
+- ⚡ **Real-Time Live Sync (SSE)**: Sinkronisasi instan sub-milidetik antar browser, HP, laptop, dan VS Code.
+- 🕒 **4 Global Real-Time World Clocks**: Bar jam dunia live berdetak detik (JKT, NYC, IST, MED).
+- 💱 **Live USD ↔ IDR Currency Calculator**: Ticker kurs realtime & kalkulator konversi dua arah.
+- 🎨 **Multi-Theme Dynamic Canvas**: 5 pilihan tema elegan (*Midnight Obsidian*, *Cyber Matrix*, *Nordic Cyan*, *Royal Amethyst*, *Solar Amber*) dengan partikel background canvas yang menyesuaikan warna secara dinamis.
+- 🔒 **Stateless HMAC-SHA256 Token Auth**: Sesi login anti-logout 100% stabil di cloud serverless (Vercel).
+- 💬 **Saran & Kritik (Feedback System)**: Form masukan dengan star rating (1-5 bintang).
+
+---
+
+## 📦 Cara Memasang Ekstensi VS Code di Laptop / PC Lain
+
+### Cara 1: Menggunakan Script Otomatis (1 Detik)
+
+#### Untuk macOS / Linux:
+```bash
+git clone https://github.com/muhmdathalla/nativecopy.git
+cd nativecopy
+./install-extension.sh
+```
+
+#### Untuk Windows:
+```cmd
+git clone https://github.com/muhmdathalla/nativecopy.git
+cd nativecopy
+install-extension.bat
+```
+
+### Cara 2: Salin Folder Manual
+Cukup salin folder `vscode-extension` ke direktori ekstensi VS Code di komputer Anda:
+- **macOS / Linux**: `~/.vscode/extensions/nativecopy-1.0.0/`
+- **Windows**: `%USERPROFILE%\.vscode\extensions\nativecopy-1.0.0\`
+
+---
+
+## 🔌 Cara Menghubungkan Ekstensi VS Code ke Akun Anda
+
+1. Buka web NativeCopy di browser (atau di HP) dan login ke akun Anda.
+2. Klik tombol **"⚡ VS Code Sync"** di navbar atas, lalu klik **"Salin Token"**.
+3. Buka **VS Code** di komputer Anda.
+4. Tekan <kbd>Ctrl + Shift + P</kbd> (atau <kbd>Cmd + Shift + P</kbd> di Mac), ketik:
+   ```text
+   NativeCopy: Connect Account / Set Token
+   ```
+5. Masukkan URL server (default: `https://nativecopy.vercel.app` atau `http://localhost:8080`) dan paste Token Akun Anda.
+6. Indikator di pojok kanan bawah VS Code akan berubah menjadi:
+   ```text
+   ⚡ NativeCopy: Live
+   ```
+
+---
+
+## 📱 Cara Menggunakan (Ketik dari HP ke File VS Code)
+
+1. Buka file kode yang ingin Anda edit di VS Code pada komputer Anda. Letakkan kursor di baris yang Anda inginkan.
+2. Di HP Anda, buka web NativeCopy:
+   - Ketik atau paste kode di kotak **"⚡ Live Remote Insert to VS Code Cursor"**, lalu tap **"⚡ Kirim Langsung ke Kursor VS Code"**.
+   - Atau tap tombol **"⚡ To VS Code"** pada salah satu card snippet yang sudah ada.
+3. Teks tersebut akan **langsung otomatis terketik di file VS Code yang sedang Anda buka!**
+
+---
+
+## 🛠️ Jalankan Server Lokal (Opsional)
 ```bash
 python3 server.py
-# Atau
+# atau
 ./start.sh
-```
-
-Terminal akan menampilkan IP jaringan lokal kamu, misalnya:
-```text
-============================================================
- 🚀 NativeCopy Server is RUNNING!
-============================================================
- • Local Access     : http://localhost:8080
- • LAN (Lab PC / HP): http://192.168.1.15:8080
-============================================================
-```
-
-### 2. Akses dari PC Lab / HP:
-1. Pastikan PC Lab terhubung ke **jaringan Wi-Fi atau LAN yang sama** dengan laptop kamu.
-2. Buka browser di PC Lab dan ketik URL IP yang tampil (misal: `http://192.168.1.15:8080`).
-3. Login menggunakan akun yang sama dengan yang didaftarkan di laptop.
-4. Selesai! Kamu sekarang bisa bebas copy-paste kode dari laptop ke PC lab atau sebaliknya secara instan.
-
----
-
-## 🛠️ Struktur Proyek
-
-```
-NativeCopy/
-├── server.py         # HTTP Server multi-threaded & SSE Real-time Broadcaster
-├── database.py       # SQLite3 Database Layer (Auth PBKDF2 & Snippets CRUD)
-├── start.sh          # Script launcher cepat
-├── test_handler.py   # Test suite otomatis
-├── README.md         # Dokumentasi lengkap
-├── data/             # Folder penyimpanan database SQLite (auto-created)
-│   └── nativecopy.db
-└── public/           # Frontend Single Page Application
-    ├── index.html    # Antarmuka web utama
-    ├── style.css     # Styling tema programmer dark mode
-    └── app.js        # Logika frontend, SSE listener & clipboard handler
 ```

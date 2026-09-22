@@ -1,0 +1,69 @@
+{
+  "name": "nativecopy",
+  "displayName": "NativeCopy // Live Remote Cursor & Clipboard Sync",
+  "description": "Live real-time code insertion directly into your active VS Code editor from Mobile / Web Clipboard",
+  "version": "1.0.0",
+  "publisher": "muhmdathalla",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets",
+    "Programming Languages"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "nativecopy.connect",
+        "title": "NativeCopy: Connect Account / Set Token"
+      },
+      {
+        "command": "nativecopy.sendSelection",
+        "title": "NativeCopy: Send Selected Code to Cloud Clipboard"
+      },
+      {
+        "command": "nativecopy.insertLatest",
+        "title": "NativeCopy: Insert Latest Snippet"
+      },
+      {
+        "command": "nativecopy.toggleAutoInsert",
+        "title": "NativeCopy: Toggle Remote Auto-Insert (On/Off)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "nativecopy.sendSelection",
+          "group": "NativeCopy",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "NativeCopy Configuration",
+      "properties": {
+        "nativecopy.serverUrl": {
+          "type": "string",
+          "default": "https://nativecopy.vercel.app",
+          "description": "NativeCopy Server URL (Vercel cloud or local http://192.168.x.x:8080)"
+        },
+        "nativecopy.token": {
+          "type": "string",
+          "default": "",
+          "description": "Your NativeCopy Account Token (can be set via Command Palette: NativeCopy Connect)"
+        },
+        "nativecopy.autoInsert": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert text received from Mobile / Web into the active VS Code cursor position"
+        }
+      }
+    }
+  }
+}
