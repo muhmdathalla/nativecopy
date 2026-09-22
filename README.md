@@ -65,12 +65,13 @@ cd nativecopy
 ./install-extension.sh
 ```
 
-#### Untuk Windows:
-Buka Command Prompt / PowerShell dan jalankan:
-```cmd
+#### Untuk Windows (PowerShell / Command Prompt):
+Buka terminal VS Code / PowerShell dan jalankan:
+```powershell
 git clone https://github.com/muhmdathalla/nativecopy.git
 cd nativecopy
-install-extension.bat
+.\install-extension.bat
+# atau: .\install-extension.ps1
 ```
 
 ---
