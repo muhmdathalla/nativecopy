@@ -20,19 +20,23 @@
     "commands": [
       {
         "command": "nativecopy.connect",
-        "title": "NativeCopy: Connect Account / Set Token"
+        "title": "Connect Account / Set Token",
+        "category": "NativeCopy"
       },
       {
         "command": "nativecopy.sendSelection",
-        "title": "NativeCopy: Send Selected Code to Cloud Clipboard"
+        "title": "Send Selected Code to Cloud Clipboard",
+        "category": "NativeCopy"
       },
       {
         "command": "nativecopy.insertLatest",
-        "title": "NativeCopy: Insert Latest Snippet"
+        "title": "Insert Latest Snippet",
+        "category": "NativeCopy"
       },
       {
         "command": "nativecopy.toggleAutoInsert",
-        "title": "NativeCopy: Toggle Remote Auto-Insert (On/Off)"
+        "title": "Toggle Remote Auto-Insert (On/Off)",
+        "category": "NativeCopy"
       }
     ],
     "menus": {
