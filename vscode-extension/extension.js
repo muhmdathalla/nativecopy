@@ -290,7 +290,7 @@ function insertTextIntoActiveEditor(text, label = 'Mobile stream') {
 
 /**
  * Direct Workspace File Injection
- * Writes incoming file from phone/laptop directly into active workspace directory!
+ * Writes incoming file directly into active editor's subfolder or active workspace directory!
  */
 async function handleDirectFileInjection(payload) {
   const filename = payload.filename || 'teleport_file.bin';
@@ -303,20 +303,47 @@ async function handleDirectFileInjection(payload) {
   }
 
   const fileBytes = Buffer.from(fileDataBase64, 'base64');
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  let targetFileUri = null;
+  let targetFolderUri = null;
 
-  if (workspaceFolders && workspaceFolders.length > 0) {
-    // Write directly into root of active workspace directory
-    targetFileUri = vscode.Uri.joinPath(workspaceFolders[0].uri, filename);
-  } else {
-    // If no workspace open, write to a temp or home directory
+  // 1. Check active text editor folder (e.g. dev.cpp in /Trial/ -> saves directly into /Trial/)
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor && activeEditor.document && activeEditor.document.uri && activeEditor.document.uri.scheme === 'file') {
+    const activeDocDir = path.dirname(activeEditor.document.uri.fsPath);
+    if (fs.existsSync(activeDocDir)) {
+      targetFolderUri = vscode.Uri.file(activeDocDir);
+    }
+  }
+
+  // 2. Check active tab group if active editor was a custom editor / notebook (.ipynb)
+  if (!targetFolderUri && vscode.window.tabGroups && vscode.window.tabGroups.activeTabGroup) {
+    const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    if (activeTab && activeTab.input && activeTab.input.uri && activeTab.input.uri.scheme === 'file') {
+      const tabDir = path.dirname(activeTab.input.uri.fsPath);
+      if (fs.existsSync(tabDir)) {
+        targetFolderUri = vscode.Uri.file(tabDir);
+      }
+    }
+  }
+
+  // 3. Fallback to workspace root folder
+  if (!targetFolderUri) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      targetFolderUri = workspaceFolders[0].uri;
+    }
+  }
+
+  // 4. Fallback to home/temp folder
+  if (!targetFolderUri) {
     const tempDir = path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', 'NativeCopy_Downloads');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    targetFileUri = vscode.Uri.file(path.join(tempDir, filename));
+    targetFolderUri = vscode.Uri.file(tempDir);
   }
+
+  const targetFileUri = vscode.Uri.joinPath(targetFolderUri, filename);
+  const relativePath = vscode.workspace.asRelativePath(targetFileUri);
 
   try {
     await vscode.workspace.fs.writeFile(targetFileUri, fileBytes);
@@ -326,7 +353,7 @@ async function handleDirectFileInjection(payload) {
     const autoOpen = config.get('autoOpenInjectedFiles', true);
 
     const action = await vscode.window.showInformationMessage(
-      `📁 NativeCopy: Received '${filename}' (${formatBytes(fileBytes.length)}) from ${sender} -> Saved to active folder!`,
+      `📁 NativeCopy: Received '${filename}' (${formatBytes(fileBytes.length)}) from ${sender} -> Saved to '${relativePath}'!`,
       'Open File'
     );
 
@@ -335,7 +362,7 @@ async function handleDirectFileInjection(payload) {
         const doc = await vscode.workspace.openTextDocument(targetFileUri);
         await vscode.window.showTextDocument(doc);
       } catch (e) {
-        // Binary files might not open as text, execute open external
+        // Binary files / notebooks execute default open
         vscode.commands.executeCommand('vscode.open', targetFileUri);
       }
     }
