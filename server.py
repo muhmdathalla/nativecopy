@@ -3,6 +3,8 @@ NativeCopy HTTP Server & Real-Time Sync
 Supports Web Dashboard, Mobile Sync, and VS Code Active Editor Live Insertion.
 """
 
+import sys
+import ssl
 import http.server
 import socketserver
 import json
@@ -641,18 +643,58 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Internal Server Error: {e}")
 
+def generate_self_signed_cert(cert_file="cert.pem", key_file="key.pem") -> bool:
+    if os.path.exists(cert_file) and os.path.exists(key_file):
+        return True
+    try:
+        cmd = [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", key_file, "-out", cert_file,
+            "-days", "365", "-nodes",
+            "-subj", "/CN=NativeCopy"
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception as e:
+        print(f"[NativeCopy] SSL certificate generation failed: {e}")
+        return False
+
 def run_server(host=HOST, port=PORT):
     database.init_db()
+    
+    use_ssl = "--ssl" in sys.argv or "--https" in sys.argv
+    cert_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cert.pem")
+    key_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "key.pem")
+
     server = ThreadingHTTPServer((host, port), NativeCopyHandler)
+    proto = "http"
+
+    if use_ssl:
+        if generate_self_signed_cert(cert_file, key_file):
+            try:
+                ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ssl_ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
+                server.socket = ssl_ctx.wrap_socket(server.socket, server_side=True)
+                proto = "https"
+            except Exception as e:
+                print(f"[NativeCopy] Failed to enable SSL: {e}. Falling back to HTTP.")
+                proto = "http"
+        else:
+            print("[NativeCopy] OpenSSL not found or failed. Running HTTP mode.")
+
     ips = get_local_ips()
     
-    print("\n" + "="*50)
-    print(" NativeCopy Server Running")
-    print("="*50)
-    print(f" • Local : http://localhost:{port}")
+    print("\n" + "="*55)
+    print(f" NativeCopy Server Running ({proto.upper()})")
+    print("="*55)
+    print(f" • Local : {proto}://localhost:{port}")
     for ip in ips:
-        print(f" • LAN   : http://{ip}:{port}")
-    print("="*50 + "\n")
+        print(f" • LAN   : {proto}://{ip}:{port}")
+    if proto == "https":
+        print(" [!] Saat buka di HP, klik 'Show Details' -> 'Visit This Website' untuk izinkan kamera")
+    else:
+        print(" [Tip] Gunakan 'python3 server.py --https' jika browser HP butuh izin kamera SSL")
+    print("="*55 + "\n")
 
     try:
         server.serve_forever()
