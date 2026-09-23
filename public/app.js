@@ -1635,18 +1635,32 @@
         if (el.cameraBtnLabel) el.cameraBtnLabel.textContent = 'Matikan Kamera';
         if (el.btnToggleAirCamera) el.btnToggleAirCamera.classList.remove('glow-accent');
 
-        // Initialize MediaPipe Hands if available
-        if (!handsInstance && window.Hands) {
-          handsInstance = new window.Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
-          });
-          handsInstance.setOptions({
-            maxNumHands: 1,
-            modelComplexity: 0, // Lite model optimized for mobile
-            minDetectionConfidence: 0.4,
-            minTrackingConfidence: 0.4
-          });
-          handsInstance.onResults(onHandResults);
+        // Ensure MediaPipe Hands is initialized
+        if (!handsInstance) {
+          if (!window.Hands) {
+            updateHudBadge('⏳ Loading AI Model...', '#f59e0b');
+            await new Promise((resolve) => {
+              const s = document.createElement('script');
+              s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+              s.crossOrigin = 'anonymous';
+              s.onload = resolve;
+              s.onerror = resolve;
+              document.head.appendChild(s);
+            });
+          }
+
+          if (window.Hands) {
+            handsInstance = new window.Hands({
+              locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+            handsInstance.setOptions({
+              maxNumHands: 1,
+              modelComplexity: 0,
+              minDetectionConfidence: 0.35,
+              minTrackingConfidence: 0.35
+            });
+            handsInstance.onResults(onHandResults);
+          }
         }
 
         updateHudBadge('🖐️ Kamera Aktif', '#10b981');
@@ -1712,11 +1726,11 @@
         }
         ctx.restore();
 
-        // Feed frame asynchronously to MediaPipe
+        // Feed canvas frame asynchronously to MediaPipe
         if (!isProcessing && handsInstance) {
           isProcessing = true;
-          handsInstance.send({ image: video })
-            .catch(() => {})
+          handsInstance.send({ image: canvas })
+            .catch((err) => { console.warn('MediaPipe frame err:', err); })
             .finally(() => { isProcessing = false; });
         }
       }
