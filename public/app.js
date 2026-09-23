@@ -1638,13 +1638,13 @@
         // Initialize MediaPipe Hands if available
         if (!handsInstance && window.Hands) {
           handsInstance = new window.Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
           });
           handsInstance.setOptions({
             maxNumHands: 1,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
+            modelComplexity: 0, // Lite model optimized for mobile
+            minDetectionConfidence: 0.4,
+            minTrackingConfidence: 0.4
           });
           handsInstance.onResults(onHandResults);
         }
@@ -1753,9 +1753,6 @@
       lastLandmarks = results.multiHandLandmarks[0];
       const landmarks = lastLandmarks;
       if (el.hudStateTag) el.hudStateTag.textContent = 'ACTIVE';
-
-      // Draw futuristic skeleton overlay
-      drawCyberHandSkeleton(ctx, landmarks, canvas.width, canvas.height);
 
       // Key landmark coordinates
       const thumbTip = landmarks[4];
