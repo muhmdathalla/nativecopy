@@ -1600,6 +1600,8 @@
       });
     }
 
+    let lastLandmarks = null;
+
     // Start Camera Stream & MediaPipe Loop
     async function startAirCamera() {
       try {
@@ -1615,8 +1617,17 @@
 
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (el.airMotionVideo) {
+          el.airMotionVideo.muted = true;
+          el.airMotionVideo.playsInline = true;
+          el.airMotionVideo.setAttribute('playsinline', '');
+          el.airMotionVideo.setAttribute('webkit-playsinline', '');
           el.airMotionVideo.srcObject = mediaStream;
-          await el.airMotionVideo.play();
+          
+          try {
+            await el.airMotionVideo.play();
+          } catch (playErr) {
+            console.warn('Video auto-play resolved:', playErr);
+          }
         }
 
         isCameraRunning = true;
@@ -1632,8 +1643,8 @@
           handsInstance.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.55,
-            minTrackingConfidence: 0.55
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
           });
           handsInstance.onResults(onHandResults);
         }
@@ -1650,6 +1661,7 @@
 
     function stopAirCamera() {
       isCameraRunning = false;
+      lastLandmarks = null;
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
@@ -1676,14 +1688,37 @@
 
     async function processCameraLoop() {
       if (!isCameraRunning) return;
-      if (!isProcessing && el.airMotionVideo && el.airMotionVideo.readyState >= 2 && handsInstance) {
-        isProcessing = true;
-        try {
-          await handsInstance.send({ image: el.airMotionVideo });
-        } catch (e) {
-          // ignore transient frame send error
+
+      const video = el.airMotionVideo;
+      const canvas = el.airMotionCanvas;
+
+      if (video && canvas && video.readyState >= 2) {
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 480;
+
+        if (canvas.width !== vw || canvas.height !== vh) {
+          canvas.width = vw;
+          canvas.height = vh;
         }
-        isProcessing = false;
+
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Draw HUD skeleton if landmarks are detected
+        if (lastLandmarks && lastLandmarks.length > 0) {
+          drawCyberHandSkeleton(ctx, lastLandmarks, canvas.width, canvas.height);
+        }
+        ctx.restore();
+
+        // Feed frame asynchronously to MediaPipe
+        if (!isProcessing && handsInstance) {
+          isProcessing = true;
+          handsInstance.send({ image: video })
+            .catch(() => {})
+            .finally(() => { isProcessing = false; });
+        }
       }
 
       // FPS tracking
@@ -1706,30 +1741,17 @@
 
     // MediaPipe Result Handler & Landmark Math
     function onHandResults(results) {
-      const canvas = el.airMotionCanvas;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-
-      // Sync canvas aspect ratio
-      if (canvas.width !== results.image.width || canvas.height !== results.image.height) {
-        canvas.width = results.image.width || 640;
-        canvas.height = results.image.height || 480;
-      }
-
-      ctx.save();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
       if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        lastLandmarks = null;
         lastX = null;
         lastY = null;
         if (el.hudStateTag) el.hudStateTag.textContent = 'SEARCHING';
         updateHudBadge('🔍 Mencari Tangan...', '#8c93a8');
-        ctx.restore();
         return;
       }
 
-      const landmarks = results.multiHandLandmarks[0];
+      lastLandmarks = results.multiHandLandmarks[0];
+      const landmarks = lastLandmarks;
       if (el.hudStateTag) el.hudStateTag.textContent = 'ACTIVE';
 
       // Draw futuristic skeleton overlay
