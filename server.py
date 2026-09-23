@@ -19,6 +19,7 @@ import base64
 from typing import Dict, List, Set, Optional
 
 import database
+import pointer_controller
 
 PORT = 8080
 HOST = "0.0.0.0"
@@ -198,6 +199,10 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 return self.send_json(401, {"error": "Unauthorized"})
             files = database.get_user_files(user["id"])
             return self.send_json(200, {"files": files})
+
+        # OS Native Pointer Status
+        if path == "/api/pointer/status":
+            return self.send_json(200, pointer_controller.get_status())
 
         # Download Teleported File
         if path.startswith("/api/files/") and path.endswith("/download"):
@@ -404,6 +409,39 @@ class NativeCopyHandler(http.server.BaseHTTPRequestHandler):
                 "message": "⚡ Seleksi kode berhasil diteleportasikan ke layar HP!",
                 "payload": payload
             })
+
+        # 4. OS Native Pointer Control Endpoints
+        if path == "/api/pointer/move":
+            data = self.parse_json_body() or {}
+            dx = float(data.get("dx", 0))
+            dy = float(data.get("dy", 0))
+            sens = float(data.get("sensitivity", 1.0))
+            if "abs_x" in data and "abs_y" in data:
+                pointer_controller.move_pointer_absolute(float(data["abs_x"]), float(data["abs_y"]))
+                new_x, new_y = float(data["abs_x"]), float(data["abs_y"])
+            else:
+                new_x, new_y = pointer_controller.move_pointer_relative(dx, dy, sens)
+            return self.send_json(200, {"success": True, "x": new_x, "y": new_y})
+
+        if path == "/api/pointer/click":
+            data = self.parse_json_body() or {}
+            button = data.get("button", "left")
+            pointer_controller.click_pointer(button)
+            return self.send_json(200, {"success": True, "button": button})
+
+        if path == "/api/pointer/scroll":
+            data = self.parse_json_body() or {}
+            dx = int(data.get("dx", 0))
+            dy = int(data.get("dy", 0))
+            sens = float(data.get("sensitivity", 1.0))
+            pointer_controller.scroll_pointer(dx, dy, sens)
+            return self.send_json(200, {"success": True, "dx": dx, "dy": dy})
+
+        if path == "/api/pointer/gesture":
+            data = self.parse_json_body() or {}
+            action = data.get("action", "")
+            success = pointer_controller.trigger_system_gesture(action)
+            return self.send_json(200, {"success": success, "action": action})
 
         # 2. Feedback
         if path == "/api/feedback":

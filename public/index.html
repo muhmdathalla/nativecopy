@@ -70,6 +70,13 @@
       <!-- Header Action Controls -->
       <div class="nav-controls">
         
+        <!-- AirMotion Spatial Pointer Button -->
+        <button class="ctrl-btn btn-airmotion-pill" id="btnOpenAirMotion" title="AirMotion Spatial Hand & Trackpad">
+          <span class="air-icon">🖐️</span>
+          <span class="btn-label-text">AirMotion</span>
+          <span class="air-badge-pulse"></span>
+        </button>
+
         <!-- VS Code Sync Button -->
         <button class="ctrl-btn btn-vscode-pill" id="btnOpenVsCodeSetup" title="VS Code Live Bridge">
           <span class="bolt-icon">⚡</span>
@@ -571,9 +578,186 @@
     </div>
   </div>
 
+  <!-- MODAL: AIRMOTION SPATIAL HAND GESTURE & VIRTUAL TRACKPAD -->
+  <div id="modalAirMotion" class="modal-overlay hidden">
+    <div class="modal-window modal-airmotion">
+      <div class="modal-drag-handle"></div>
+      
+      <div class="modal-top">
+        <div class="modal-heading">
+          <span class="air-brand-icon">🖐️</span>
+          <div>
+            <h3>AirMotion Spatial Control</h3>
+            <span class="sub-lead">Kontrol mouse & gesture laptop OS langsung dari HP</span>
+          </div>
+        </div>
+        <button id="btnCloseAirMotion" class="close-x-btn">&times;</button>
+      </div>
+
+      <!-- AirMotion Mode Toggle -->
+      <div class="airmotion-tabs">
+        <button class="air-tab active" id="tabAirCamera">
+          <span>📷 Air Camera HUD</span>
+          <span class="live-dot-mini"></span>
+        </button>
+        <button class="air-tab" id="tabAirTrackpad">
+          <span>📱 Virtual Trackpad</span>
+        </button>
+      </div>
+
+      <!-- Panel 1: Air Camera Gesture Tracking -->
+      <div id="panelAirCamera" class="airmotion-panel">
+        <div class="camera-viewport-container">
+          <video id="airMotionVideo" playsinline autoplay muted class="hidden-video"></video>
+          <canvas id="airMotionCanvas"></canvas>
+          
+          <!-- Cyber HUD Overlay Elements -->
+          <div class="camera-hud-overlay">
+            <div class="hud-top-bar">
+              <div class="hud-badge" id="hudGestureBadge">
+                <span class="hud-pulse-dot"></span>
+                <span id="hudGestureText">Kamera Siap</span>
+              </div>
+              <div class="hud-stat-pill" id="hudFpsText">30 FPS</div>
+            </div>
+
+            <div class="hud-center-reticle" id="hudReticle">
+              <div class="reticle-ring"></div>
+              <div class="reticle-dot"></div>
+            </div>
+
+            <div class="hud-bottom-bar">
+              <span class="hud-coords" id="hudCoordsText">X: 0 | Y: 0</span>
+              <span class="hud-state-tag" id="hudStateTag">TRACKING</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="air-controls-strip">
+          <button id="btnToggleAirCamera" class="btn btn-primary glow-accent">
+            <span id="cameraBtnIcon">▶️</span>
+            <span id="cameraBtnLabel">Aktifkan Kamera AI</span>
+          </button>
+          <button id="btnFlipCamera" class="btn btn-secondary btn-icon-only" title="Ganti Kamera Depan / Belakang">
+            🔄
+          </button>
+          <button id="btnRecalibrateAir" class="btn btn-secondary" title="Kalibrasi Posisi Tengah">
+            🎯 Recalibrate
+          </button>
+        </div>
+
+        <!-- Sensitivity & Settings -->
+        <div class="air-settings-row">
+          <div class="slider-group">
+            <div class="slider-label-row">
+              <span>Kecepatan Kursor (Sensitivity)</span>
+              <span id="airSensVal">2.0x</span>
+            </div>
+            <input type="range" id="rangeAirSensitivity" min="0.5" max="5.0" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <!-- Real-time Gesture Legend -->
+        <div class="gesture-legend-card">
+          <div class="legend-title">⚡ Panduan Gestur Tangan (Air Gestures):</div>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <span class="g-icon">👆</span>
+              <div>
+                <strong>1 Jari (Telunjuk)</strong>
+                <p>Gerakkan kursor laptop</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="g-icon">👌</span>
+              <div>
+                <strong>Pinch (Jari + Jempol)</strong>
+                <p>Klik Kiri (Left Click)</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="g-icon">✌️</span>
+              <div>
+                <strong>2 Jari Terangkat</strong>
+                <p>Scroll Halaman (Up / Down)</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="g-icon">🖐️</span>
+              <div>
+                <strong>3 Jari Terbuka</strong>
+                <p>Ganti Window (Cmd/Alt+Tab)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Virtual Trackpad -->
+      <div id="panelAirTrackpad" class="airmotion-panel hidden">
+        <div class="trackpad-surface-wrapper">
+          <div id="virtualTouchpad" class="touchpad-surface">
+            <div class="touchpad-grid-pattern"></div>
+            <div class="touchpad-watermark">
+              <span>TOUCHPAD SURFACE</span>
+              <p>Geser 1 jari untuk pointer • 2 jari untuk scroll • Ketuk untuk klik</p>
+            </div>
+            <div id="touchpadPointerDot" class="touch-feedback-dot hidden"></div>
+          </div>
+        </div>
+
+        <!-- Tactile Mouse Buttons -->
+        <div class="trackpad-mouse-buttons">
+          <button id="btnTrackpadLeftClick" class="btn-mouse-click btn-click-left">
+            <span>🖱️ KLIK KIRI</span>
+          </button>
+          <button id="btnTrackpadRightClick" class="btn-mouse-click btn-click-right">
+            <span>KLIK KANAN 🖱️</span>
+          </button>
+        </div>
+
+        <!-- Quick OS Shortcuts Toolbar -->
+        <div class="os-quick-actions">
+          <button class="btn-os-shortcut" data-action="switch_window">
+            <span>🔀</span>
+            <span>Switch App</span>
+          </button>
+          <button class="btn-os-shortcut" data-action="play_pause">
+            <span>⏯️</span>
+            <span>Space / Play</span>
+          </button>
+          <button class="btn-os-shortcut" data-action="enter">
+            <span>↵</span>
+            <span>Enter</span>
+          </button>
+          <button class="btn-os-shortcut" data-action="escape">
+            <span>⎋</span>
+            <span>Esc</span>
+          </button>
+        </div>
+
+        <!-- Trackpad Sensitivity -->
+        <div class="air-settings-row">
+          <div class="slider-group">
+            <div class="slider-label-row">
+              <span>Sensitivitas Trackpad</span>
+              <span id="trackpadSensVal">1.5x</span>
+            </div>
+            <input type="range" id="rangeTrackpadSensitivity" min="0.5" max="4.0" step="0.1" value="1.5">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Toast Notification Stack -->
   <div id="toastContainer" class="toast-area"></div>
 
+  <!-- MediaPipe Hands & Camera Utils for AI Hand Gesture Tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script src="app.js"></script>
 </body>
 </html>

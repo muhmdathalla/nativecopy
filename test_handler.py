@@ -193,10 +193,46 @@ class TestNativeCopyDirect(unittest.TestCase):
         }, headers={"Authorization": f"Bearer {token}"})
         self.assertEqual(res_fb["status"], 201)
 
-        # 16. Static File test (index.html)
+        # 16. OS Pointer Controller Endpoints Test
+        res_p_status = simulate_http_request("GET", "/api/pointer/status")
+        self.assertEqual(res_p_status["status"], 200)
+        self.assertIn("available", res_p_status["json"])
+        self.assertIn("platform", res_p_status["json"])
+
+        res_p_move = simulate_http_request("POST", "/api/pointer/move", {
+            "dx": 5.0,
+            "dy": -3.0,
+            "sensitivity": 1.5
+        })
+        self.assertEqual(res_p_move["status"], 200)
+        self.assertTrue(res_p_move["json"]["success"])
+
+        res_p_click = simulate_http_request("POST", "/api/pointer/click", {
+            "button": "left"
+        })
+        self.assertEqual(res_p_click["status"], 200)
+        self.assertTrue(res_p_click["json"]["success"])
+
+        res_p_scroll = simulate_http_request("POST", "/api/pointer/scroll", {
+            "dx": 0,
+            "dy": 10,
+            "sensitivity": 1.0
+        })
+        self.assertEqual(res_p_scroll["status"], 200)
+        self.assertTrue(res_p_scroll["json"]["success"])
+
+        res_p_gesture = simulate_http_request("POST", "/api/pointer/gesture", {
+            "action": "play_pause"
+        })
+        self.assertEqual(res_p_gesture["status"], 200)
+        self.assertTrue(res_p_gesture["json"]["success"])
+
+        # 17. Static File test (index.html)
         res_static = simulate_http_request("GET", "/")
         self.assertEqual(res_static["status"], 200)
         self.assertIn("NativeCopy", res_static["body"].decode("utf-8"))
+        self.assertIn("AirMotion", res_static["body"].decode("utf-8"))
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -221,6 +221,35 @@
     starRating: document.getElementById('starRating'),
     ratingText: document.getElementById('ratingText'),
     btnSubmitFeedback: document.getElementById('btnSubmitFeedback'),
+    // AirMotion Spatial Pointer & Trackpad
+    btnOpenAirMotion: document.getElementById('btnOpenAirMotion'),
+    modalAirMotion: document.getElementById('modalAirMotion'),
+    btnCloseAirMotion: document.getElementById('btnCloseAirMotion'),
+    tabAirCamera: document.getElementById('tabAirCamera'),
+    tabAirTrackpad: document.getElementById('tabAirTrackpad'),
+    panelAirCamera: document.getElementById('panelAirCamera'),
+    panelAirTrackpad: document.getElementById('panelAirTrackpad'),
+    airMotionVideo: document.getElementById('airMotionVideo'),
+    airMotionCanvas: document.getElementById('airMotionCanvas'),
+    hudGestureBadge: document.getElementById('hudGestureBadge'),
+    hudGestureText: document.getElementById('hudGestureText'),
+    hudFpsText: document.getElementById('hudFpsText'),
+    hudReticle: document.getElementById('hudReticle'),
+    hudCoordsText: document.getElementById('hudCoordsText'),
+    hudStateTag: document.getElementById('hudStateTag'),
+    btnToggleAirCamera: document.getElementById('btnToggleAirCamera'),
+    cameraBtnIcon: document.getElementById('cameraBtnIcon'),
+    cameraBtnLabel: document.getElementById('cameraBtnLabel'),
+    btnFlipCamera: document.getElementById('btnFlipCamera'),
+    btnRecalibrateAir: document.getElementById('btnRecalibrateAir'),
+    rangeAirSensitivity: document.getElementById('rangeAirSensitivity'),
+    airSensVal: document.getElementById('airSensVal'),
+    virtualTouchpad: document.getElementById('virtualTouchpad'),
+    touchpadPointerDot: document.getElementById('touchpadPointerDot'),
+    btnTrackpadLeftClick: document.getElementById('btnTrackpadLeftClick'),
+    btnTrackpadRightClick: document.getElementById('btnTrackpadRightClick'),
+    rangeTrackpadSensitivity: document.getElementById('rangeTrackpadSensitivity'),
+    trackpadSensVal: document.getElementById('trackpadSensVal'),
     // Toast
     toastContainer: document.getElementById('toastContainer')
   };
@@ -1371,12 +1400,13 @@
         el.modalCurrency.classList.add('hidden');
         el.modalFeedback.classList.add('hidden');
         el.modalAbout.classList.add('hidden');
+        if (el.modalAirMotion) el.modalAirMotion.classList.add('hidden');
         el.themeMenu.classList.add('hidden');
       }
     });
 
     // Backdrop click closes modal
-    [el.modalSnippet, el.modalVsCode, el.modalCurrency, el.modalFeedback, el.modalAbout].forEach(m => {
+    [el.modalSnippet, el.modalVsCode, el.modalCurrency, el.modalFeedback, el.modalAbout, el.modalAirMotion].forEach(m => {
       if (!m) return;
       m.addEventListener('click', (e) => {
         if (e.target === m) m.classList.add('hidden');
@@ -1399,6 +1429,542 @@
     });
   }
 
+  // --- AirMotion Spatial Hand Gesture & Virtual Trackpad Engine ---
+  function setupAirMotionSystem() {
+    if (!el.btnOpenAirMotion || !el.modalAirMotion) return;
+
+    let mediaStream = null;
+    let handsInstance = null;
+    let cameraFacing = 'user'; // 'user' (front selfie) or 'environment' (rear)
+    let isCameraRunning = false;
+    let isProcessing = false;
+    let animationFrameId = null;
+
+    // Movement state & EMA smoothing filter
+    let lastX = null;
+    let lastY = null;
+    let smoothDx = 0;
+    let smoothDy = 0;
+    const alpha = 0.45; // EMA smoothing factor
+
+    // Throttling & debouncing
+    let lastMoveTime = 0;
+    let lastClickTime = 0;
+    let lastScrollTime = 0;
+    let lastGestureTime = 0;
+    let movePending = false;
+
+    let fpsFrames = 0;
+    let lastFpsCalc = performance.now();
+
+    // Sensitivity
+    let airSensitivity = parseFloat(el.rangeAirSensitivity ? el.rangeAirSensitivity.value : '2.0');
+    let trackpadSensitivity = parseFloat(el.rangeTrackpadSensitivity ? el.rangeTrackpadSensitivity.value : '1.5');
+
+    // UI Range listeners
+    if (el.rangeAirSensitivity) {
+      el.rangeAirSensitivity.addEventListener('input', (e) => {
+        airSensitivity = parseFloat(e.target.value);
+        if (el.airSensVal) el.airSensVal.textContent = `${airSensitivity.toFixed(1)}x`;
+      });
+    }
+
+    if (el.rangeTrackpadSensitivity) {
+      el.rangeTrackpadSensitivity.addEventListener('input', (e) => {
+        trackpadSensitivity = parseFloat(e.target.value);
+        if (el.trackpadSensVal) el.trackpadSensVal.textContent = `${trackpadSensitivity.toFixed(1)}x`;
+      });
+    }
+
+    // Modal Triggers
+    el.btnOpenAirMotion.addEventListener('click', () => {
+      el.modalAirMotion.classList.remove('hidden');
+    });
+
+    el.btnCloseAirMotion.addEventListener('click', () => {
+      closeAirMotionModal();
+    });
+
+    function closeAirMotionModal() {
+      el.modalAirMotion.classList.add('hidden');
+      stopAirCamera();
+    }
+
+    // Tabs switching
+    if (el.tabAirCamera && el.tabAirTrackpad) {
+      el.tabAirCamera.addEventListener('click', () => {
+        el.tabAirCamera.classList.add('active');
+        el.tabAirTrackpad.classList.remove('active');
+        el.panelAirCamera.classList.remove('hidden');
+        el.panelAirTrackpad.classList.add('hidden');
+      });
+
+      el.tabAirTrackpad.addEventListener('click', () => {
+        el.tabAirTrackpad.classList.add('active');
+        el.tabAirCamera.classList.remove('active');
+        el.panelAirTrackpad.classList.remove('hidden');
+        el.panelAirCamera.classList.add('hidden');
+      });
+    }
+
+    // Network transmitters
+    async function sendPointerMove(dx, dy) {
+      const now = performance.now();
+      if (now - lastMoveTime < 18 || movePending) return; // ~50Hz max transmission rate
+      movePending = true;
+      lastMoveTime = now;
+      try {
+        await fetch('/api/pointer/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dx, dy, sensitivity: airSensitivity })
+        });
+      } catch (err) {
+        // silent fail
+      } finally {
+        movePending = false;
+      }
+    }
+
+    async function sendPointerClick(button = 'left') {
+      const now = performance.now();
+      if (now - lastClickTime < 350) return; // 350ms cooldown
+      lastClickTime = now;
+      try {
+        await fetch('/api/pointer/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ button })
+        });
+      } catch (err) {}
+    }
+
+    async function sendPointerScroll(dx, dy) {
+      const now = performance.now();
+      if (now - lastScrollTime < 30) return;
+      lastScrollTime = now;
+      try {
+        await fetch('/api/pointer/scroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dx, dy, sensitivity: airSensitivity })
+        });
+      } catch (err) {}
+    }
+
+    async function sendPointerGesture(action) {
+      const now = performance.now();
+      if (now - lastGestureTime < 800) return; // 800ms cooldown
+      lastGestureTime = now;
+      try {
+        const res = await fetch('/api/pointer/gesture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`⚡ Gestur Terpicu: ${action}`, 'success');
+        }
+      } catch (err) {}
+    }
+
+    // Camera Controls
+    if (el.btnToggleAirCamera) {
+      el.btnToggleAirCamera.addEventListener('click', () => {
+        if (isCameraRunning) {
+          stopAirCamera();
+        } else {
+          startAirCamera();
+        }
+      });
+    }
+
+    if (el.btnFlipCamera) {
+      el.btnFlipCamera.addEventListener('click', () => {
+        cameraFacing = cameraFacing === 'user' ? 'environment' : 'user';
+        if (isCameraRunning) {
+          stopAirCamera();
+          startAirCamera();
+        }
+      });
+    }
+
+    if (el.btnRecalibrateAir) {
+      el.btnRecalibrateAir.addEventListener('click', () => {
+        lastX = null;
+        lastY = null;
+        smoothDx = 0;
+        smoothDy = 0;
+        updateHudBadge('🎯 Recalibrated', '#38bdf8');
+      });
+    }
+
+    // Start Camera Stream & MediaPipe Loop
+    async function startAirCamera() {
+      try {
+        updateHudBadge('⏳ Memulai Kamera...', '#f59e0b');
+        const constraints = {
+          video: {
+            facingMode: cameraFacing,
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        };
+
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (el.airMotionVideo) {
+          el.airMotionVideo.srcObject = mediaStream;
+          await el.airMotionVideo.play();
+        }
+
+        isCameraRunning = true;
+        if (el.cameraBtnIcon) el.cameraBtnIcon.textContent = '⏹️';
+        if (el.cameraBtnLabel) el.cameraBtnLabel.textContent = 'Matikan Kamera';
+        if (el.btnToggleAirCamera) el.btnToggleAirCamera.classList.remove('glow-accent');
+
+        // Initialize MediaPipe Hands if available
+        if (!handsInstance && window.Hands) {
+          handsInstance = new window.Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+          handsInstance.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+          });
+          handsInstance.onResults(onHandResults);
+        }
+
+        updateHudBadge('🖐️ Kamera Aktif', '#10b981');
+        processCameraLoop();
+      } catch (err) {
+        console.error('AirMotion camera start error:', err);
+        showToast('Gagal mengakses kamera. Pastikan izin kamera telah diberikan di browser!', 'error');
+        updateHudBadge('❌ Kamera Error', '#dc2626');
+        stopAirCamera();
+      }
+    }
+
+    function stopAirCamera() {
+      isCameraRunning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      if (el.airMotionVideo) {
+        el.airMotionVideo.srcObject = null;
+      }
+      if (el.cameraBtnIcon && el.cameraBtnLabel) {
+        el.cameraBtnIcon.textContent = '▶️';
+        el.cameraBtnLabel.textContent = 'Aktifkan Kamera AI';
+        if (el.btnToggleAirCamera) el.btnToggleAirCamera.classList.add('glow-accent');
+      }
+      // Clear canvas
+      if (el.airMotionCanvas) {
+        const ctx = el.airMotionCanvas.getContext('2d');
+        ctx.clearRect(0, 0, el.airMotionCanvas.width, el.airMotionCanvas.height);
+      }
+      updateHudBadge('Kamera Siap', '#8c93a8');
+    }
+
+    async function processCameraLoop() {
+      if (!isCameraRunning) return;
+      if (!isProcessing && el.airMotionVideo && el.airMotionVideo.readyState >= 2 && handsInstance) {
+        isProcessing = true;
+        try {
+          await handsInstance.send({ image: el.airMotionVideo });
+        } catch (e) {
+          // ignore transient frame send error
+        }
+        isProcessing = false;
+      }
+
+      // FPS tracking
+      fpsFrames++;
+      const now = performance.now();
+      if (now - lastFpsCalc >= 1000) {
+        const fps = Math.round((fpsFrames * 1000) / (now - lastFpsCalc));
+        if (el.hudFpsText) el.hudFpsText.textContent = `${fps} FPS`;
+        fpsFrames = 0;
+        lastFpsCalc = now;
+      }
+
+      animationFrameId = requestAnimationFrame(processCameraLoop);
+    }
+
+    function updateHudBadge(text, color = '#38bdf8') {
+      if (el.hudGestureText) el.hudGestureText.textContent = text;
+      if (el.hudGestureBadge) el.hudGestureBadge.style.color = color;
+    }
+
+    // MediaPipe Result Handler & Landmark Math
+    function onHandResults(results) {
+      const canvas = el.airMotionCanvas;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      // Sync canvas aspect ratio
+      if (canvas.width !== results.image.width || canvas.height !== results.image.height) {
+        canvas.width = results.image.width || 640;
+        canvas.height = results.image.height || 480;
+      }
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        lastX = null;
+        lastY = null;
+        if (el.hudStateTag) el.hudStateTag.textContent = 'SEARCHING';
+        updateHudBadge('🔍 Mencari Tangan...', '#8c93a8');
+        ctx.restore();
+        return;
+      }
+
+      const landmarks = results.multiHandLandmarks[0];
+      if (el.hudStateTag) el.hudStateTag.textContent = 'ACTIVE';
+
+      // Draw futuristic skeleton overlay
+      drawCyberHandSkeleton(ctx, landmarks, canvas.width, canvas.height);
+
+      // Key landmark coordinates
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
+      const middleTip = landmarks[12];
+      const ringTip = landmarks[16];
+      const pinkyTip = landmarks[20];
+
+      const indexPip = landmarks[6];
+      const middlePip = landmarks[10];
+      const ringPip = landmarks[14];
+      const pinkyPip = landmarks[18];
+
+      // Finger extension checks (lower Y means higher up in screen coords)
+      const isIndexExtended = indexTip.y < indexPip.y;
+      const isMiddleExtended = middleTip.y < middlePip.y;
+      const isRingExtended = ringTip.y < ringPip.y;
+      const isPinkyExtended = pinkyTip.y < pinkyPip.y;
+
+      // Pinch Distance (Thumb Tip to Index Tip)
+      const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+
+      // Display coordinates on HUD (Mirror X for natural selfie feel)
+      const currX = (1.0 - indexTip.x);
+      const currY = indexTip.y;
+      if (el.hudCoordsText) {
+        el.hudCoordsText.textContent = `X: ${(currX * 100).toFixed(0)}% | Y: ${(currY * 100).toFixed(0)}%`;
+      }
+
+      // Update Reticle location
+      if (el.hudReticle) {
+        el.hudReticle.style.left = `${(currX * 100).toFixed(1)}%`;
+        el.hudReticle.style.top = `${(currY * 100).toFixed(1)}%`;
+      }
+
+      // ---------------- GESTURE CLASSIFIER ----------------
+      // 1. PINCH CLICK: Thumb & Index very close
+      if (pinchDist < 0.055) {
+        updateHudBadge('👌 Pinch Click!', '#10b981');
+        sendPointerClick('left');
+        lastX = null;
+        lastY = null;
+      }
+      // 2. 3 FINGERS: Switch Window (Cmd+Tab / Alt+Tab)
+      else if (isIndexExtended && isMiddleExtended && isRingExtended) {
+        updateHudBadge('🖐️ Switch App (Cmd/Alt+Tab)', '#a855f7');
+        sendPointerGesture('switch_window');
+        lastX = null;
+        lastY = null;
+      }
+      // 3. 2 FINGERS: Scroll Up / Down
+      else if (isIndexExtended && isMiddleExtended && !isRingExtended) {
+        updateHudBadge('✌️ Scrolling', '#38bdf8');
+        if (lastY !== null) {
+          const rawDy = (currY - lastY) * 600;
+          if (Math.abs(rawDy) > 2) {
+            sendPointerScroll(0, Math.round(rawDy));
+          }
+        }
+        lastX = currX;
+        lastY = currY;
+      }
+      // 4. 1 FINGER (Index): Smooth Pointer Movement
+      else if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+        updateHudBadge('👆 Pointer Active', '#38bdf8');
+        if (lastX !== null && lastY !== null) {
+          const rawDx = (currX - lastX) * 1400;
+          const rawDy = (currY - lastY) * 1400;
+
+          // Apply Exponential Moving Average (EMA)
+          smoothDx = alpha * rawDx + (1 - alpha) * smoothDx;
+          smoothDy = alpha * rawDy + (1 - alpha) * smoothDy;
+
+          if (Math.abs(smoothDx) > 0.4 || Math.abs(smoothDy) > 0.4) {
+            sendPointerMove(smoothDx, smoothDy);
+          }
+        }
+        lastX = currX;
+        lastY = currY;
+      }
+      // 5. FIST / CLOSED HAND: Pause
+      else if (!isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+        updateHudBadge('✊ Tracking Paused', '#f59e0b');
+        lastX = null;
+        lastY = null;
+      } else {
+        lastX = null;
+        lastY = null;
+      }
+
+      ctx.restore();
+    }
+
+    // Cyber HUD Skeleton Drawing
+    function drawCyberHandSkeleton(ctx, landmarks, w, h) {
+      const connections = [
+        [0,1],[1,2],[2,3],[3,4], // Thumb
+        [0,5],[5,6],[6,7],[7,8], // Index
+        [0,9],[9,10],[10,11],[11,12], // Middle
+        [0,13],[13,14],[14,15],[15,16], // Ring
+        [0,17],[17,18],[18,19],[19,20], // Pinky
+        [5,9],[9,13],[13,17] // Palm bridge
+      ];
+
+      // Draw connections
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
+
+      for (const [i, j] of connections) {
+        const p1 = landmarks[i];
+        const p2 = landmarks[j];
+        ctx.beginPath();
+        ctx.moveTo(p1.x * w, p1.y * h);
+        ctx.lineTo(p2.x * w, p2.y * h);
+        ctx.stroke();
+      }
+
+      // Draw joints
+      landmarks.forEach((p, idx) => {
+        const x = p.x * w;
+        const y = p.y * h;
+        ctx.beginPath();
+        if (idx === 8 || idx === 4) { // Index & Thumb tips
+          ctx.arc(x, y, 6, 0, 2 * Math.PI);
+          ctx.fillStyle = '#10b981';
+          ctx.shadowColor = '#10b981';
+          ctx.shadowBlur = 12;
+        } else {
+          ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+          ctx.fillStyle = '#38bdf8';
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 6;
+        }
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+    }
+
+    // ---------------- Virtual Trackpad Touch Handlers ----------------
+    if (el.virtualTouchpad) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
+      let lastTouchX = 0;
+      let lastTouchY = 0;
+      let lastTwoTouchY = 0;
+
+      el.virtualTouchpad.addEventListener('touchstart', (e) => {
+        const touches = e.touches;
+        touchStartTime = performance.now();
+
+        if (touches.length === 1) {
+          touchStartX = touches[0].clientX;
+          touchStartY = touches[0].clientY;
+          lastTouchX = touchStartX;
+          lastTouchY = touchStartY;
+
+          if (el.touchpadPointerDot) {
+            const rect = el.virtualTouchpad.getBoundingClientRect();
+            el.touchpadPointerDot.style.left = `${touchStartX - rect.left}px`;
+            el.touchpadPointerDot.style.top = `${touchStartY - rect.top}px`;
+            el.touchpadPointerDot.classList.remove('hidden');
+          }
+        } else if (touches.length === 2) {
+          lastTwoTouchY = (touches[0].clientY + touches[1].clientY) / 2;
+        }
+      }, { passive: true });
+
+      el.virtualTouchpad.addEventListener('touchmove', (e) => {
+        const touches = e.touches;
+        if (touches.length === 1) {
+          const curX = touches[0].clientX;
+          const curY = touches[0].clientY;
+          const dx = (curX - lastTouchX) * trackpadSensitivity * 1.5;
+          const dy = (curY - lastTouchY) * trackpadSensitivity * 1.5;
+
+          lastTouchX = curX;
+          lastTouchY = curY;
+
+          if (el.touchpadPointerDot) {
+            const rect = el.virtualTouchpad.getBoundingClientRect();
+            el.touchpadPointerDot.style.left = `${curX - rect.left}px`;
+            el.touchpadPointerDot.style.top = `${curY - rect.top}px`;
+          }
+
+          sendPointerMove(dx, dy);
+        } else if (touches.length === 2) {
+          const curTwoTouchY = (touches[0].clientY + touches[1].clientY) / 2;
+          const deltaY = (curTwoTouchY - lastTwoTouchY) * trackpadSensitivity * 3.0;
+          lastTwoTouchY = curTwoTouchY;
+
+          sendPointerScroll(0, Math.round(deltaY));
+        }
+      }, { passive: true });
+
+      el.virtualTouchpad.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) {
+          const duration = performance.now() - touchStartTime;
+          const dist = Math.hypot(lastTouchX - touchStartX, lastTouchY - touchStartY);
+
+          // Tap detection (under 250ms & under 10px move)
+          if (duration < 250 && dist < 10) {
+            sendPointerClick('left');
+          }
+
+          if (el.touchpadPointerDot) {
+            el.touchpadPointerDot.classList.add('hidden');
+          }
+        }
+      }, { passive: true });
+    }
+
+    // Mouse Buttons
+    if (el.btnTrackpadLeftClick) {
+      el.btnTrackpadLeftClick.addEventListener('click', () => sendPointerClick('left'));
+    }
+    if (el.btnTrackpadRightClick) {
+      el.btnTrackpadRightClick.addEventListener('click', () => sendPointerClick('right'));
+    }
+
+    // OS Quick Action Buttons
+    document.querySelectorAll('.btn-os-shortcut').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action) sendPointerGesture(action);
+      });
+    });
+  }
+
   // --- Initialize App ---
   setTheme(state.theme);
   setLanguage(state.lang);
@@ -1407,6 +1973,7 @@
   setupEventListeners();
   setupTeleportModeTabs();
   setupFileTeleportation();
+  setupAirMotionSystem();
   fetchLiveCurrencyRate();
   updateAuthUI();
 

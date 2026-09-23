@@ -20,28 +20,38 @@
 
 ## 🚀 Fitur Unggulan
 
-### 1. ⚡ Live Remote Typing ke Kursor VS Code
+### 1. 🖐️ AirMotion Spatial Hand Gesture Camera Pointer & Virtual Trackpad *(NEW & ANTI-MAINSTREAM)*
+Kendalikan kursor mouse dan gestur OS laptop Anda (Mac & Windows) secara global **tanpa harus buka VS Code saja** — bekerja untuk desktop, browser, video, presentasi, dll:
+- 📷 **AI Computer Vision (MediaPipe Hands)**: Mengakses kamera HP secara langsung dengan overlay Cyber HUD futuristik.
+- 👆 **1 Jari (Telunjuk)**: Menggerakkan pointer kursor OS laptop secara presisi dengan filter *Exponential Moving Average (EMA)* anti-jitter.
+- 👌 **Pinch Gesture (Telunjuk + Jempol)**: Klik kiri (*Left Click*) instan.
+- ✌️ **2 Jari Terangkat**: Scroll halaman web / dokumen ke atas & ke bawah secara natural.
+- 🖐️ **3 Jari Terbuka**: Switch window aplikasi OS (<kbd>Cmd + Tab</kbd> di macOS / <kbd>Alt + Tab</kbd> di Windows).
+- ✊ **Genggaman Tertutup**: Pause tracking otomatis agar leluasa reposisi tangan.
+- 📱 **Virtual Touchpad Mode**: Trackpad sentuh presisi tinggi dengan multi-touch scroll, tactile left/right click, dan OS shortcut bar jika tidak ingin menggunakan kamera.
+
+### 2. ⚡ Live Remote Typing ke Kursor VS Code
 Ketik atau paste kode/teks dari HP Anda $\rightarrow$ tekan **"Kirim ke VS Code"** $\rightarrow$ teks **langsung terketik otomatis di posisi kursor file VS Code yang sedang Anda buka di laptop!**
 
-### 2. 📁 Direct Workspace Directory File Injection (HP $\rightarrow$ Folder VS Code)
+### 3. 📁 Direct Workspace Directory File Injection (HP $\rightarrow$ Folder VS Code)
 Upload file apa saja dari HP (file kode `.ipynb`, `.cpp`, `.py`, `.js`, gambar, dataset `.csv`, archive `.zip`) $\rightarrow$ ekstensi VS Code secara otomatis **langsung menyimpan file tersebut ke dalam subfolder project yang sedang aktif dibuka** di VS Code dan langsung membuka tab filenya!
 
-### 3. ⚡ Reverse Teleport Selection (VS Code $\rightarrow$ Layar HP)
+### 4. ⚡ Reverse Teleport Selection (VS Code $\rightarrow$ Layar HP)
 Blok baris kode atau fungsi apa saja di VS Code laptop $\rightarrow$ tekan shortcut `Cmd+Option+T` (Mac) atau `Ctrl+Alt+T` (Windows) $\rightarrow$ kode langsung **teleport** muncul di layar HP Anda seketika disertai getaran haptic dan tombol *1-Tap Salin*.
 
-### 4. 📤 Upload File dari VS Code ke HP (Download Hub)
+### 5. 📤 Upload File dari VS Code ke HP (Download Hub)
 Kirim file aktif dari laptop ke HP cukup dengan menekan `Cmd+Option+U` (Mac) / `Ctrl+Alt+U` (Windows). File langsung muncul di daftar unduhan HP Anda.
 
-### 5. 📱 Desain Mobile-First (Dioptimalkan untuk iPhone 13 Pro & iOS Safari)
+### 6. 📱 Desain Mobile-First (Dioptimalkan untuk iPhone 13 Pro & iOS Safari)
 - **iOS Bottom-Sheet Modals**: Dialog bergaya sheet asli iOS dengan drag handle dan gesture swipe-down untuk menutup.
 - **Safe Area Inset Support**: Sempurna untuk layar ber-notch dan Dynamic Island.
 - **Auto-Zoom Prevention**: Input teks nyaman tanpa zoom liar di Safari iOS.
 
-### 6. 🕒 4 Jam Dunia & Kalkulator Kurs Live
+### 7. 🕒 4 Jam Dunia & Kalkulator Kurs Live
 - Bar jam dunia realtime: **Jakarta (WIB)**, **New York (EDT)**, **Istanbul (TRT)**, dan **Madinah (AST)**.
 - Ticker kurs USD $\leftrightarrow$ IDR live dengan kalkulator dua arah.
 
-### 7. 🎨 5 Tema Dinamis & Background Partikel
+### 8. 🎨 5 Tema Dinamis & Background Partikel
 Pilihan tema futuristik:
 - 🌌 **Midnight Obsidian** (Default Modern Dark)
 - 🟩 **Cyber Matrix** (Emerald Glow)
