@@ -1700,6 +1700,8 @@
       updateHudBadge('Kamera Siap', '#8c93a8');
     }
 
+    let lastInferenceTime = 0;
+
     async function processCameraLoop() {
       if (!isCameraRunning) return;
 
@@ -1726,9 +1728,11 @@
         }
         ctx.restore();
 
-        // Feed canvas frame asynchronously to MediaPipe
-        if (!isProcessing && handsInstance) {
+        // Feed canvas frame asynchronously to MediaPipe (throttled to ~30 FPS to prevent lag)
+        const now = performance.now();
+        if (!isProcessing && handsInstance && (now - lastInferenceTime >= 30)) {
           isProcessing = true;
+          lastInferenceTime = now;
           handsInstance.send({ image: canvas })
             .catch((err) => { console.warn('MediaPipe frame err:', err); })
             .finally(() => { isProcessing = false; });
@@ -1769,22 +1773,25 @@
       if (el.hudStateTag) el.hudStateTag.textContent = 'ACTIVE';
 
       // Key landmark coordinates
+      const wrist = landmarks[0];
       const thumbTip = landmarks[4];
       const indexTip = landmarks[8];
       const middleTip = landmarks[12];
       const ringTip = landmarks[16];
       const pinkyTip = landmarks[20];
 
-      const indexPip = landmarks[6];
-      const middlePip = landmarks[10];
-      const ringPip = landmarks[14];
-      const pinkyPip = landmarks[18];
+      // Robust finger extension checks (distance from wrist invariant to rotation)
+      function isFingerExtended(tipIdx, pipIdx, mcpIdx) {
+        const dTip = Math.hypot(landmarks[tipIdx].x - wrist.x, landmarks[tipIdx].y - wrist.y);
+        const dPip = Math.hypot(landmarks[pipIdx].x - wrist.x, landmarks[pipIdx].y - wrist.y);
+        const dMcp = Math.hypot(landmarks[mcpIdx].x - wrist.x, landmarks[mcpIdx].y - wrist.y);
+        return dTip > dPip * 1.15 && dPip > dMcp * 0.9;
+      }
 
-      // Finger extension checks (lower Y means higher up in screen coords)
-      const isIndexExtended = indexTip.y < indexPip.y;
-      const isMiddleExtended = middleTip.y < middlePip.y;
-      const isRingExtended = ringTip.y < ringPip.y;
-      const isPinkyExtended = pinkyTip.y < pinkyPip.y;
+      const isIndexExt = isFingerExtended(8, 6, 5);
+      const isMiddleExt = isFingerExtended(12, 10, 9);
+      const isRingExt = isFingerExtended(16, 14, 13);
+      const isPinkyExt = isFingerExtended(20, 18, 17);
 
       // Pinch Distance (Thumb Tip to Index Tip)
       const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
@@ -1807,21 +1814,12 @@
       if (pinchDist < 0.055) {
         updateHudBadge('👌 Pinch Click!', '#10b981');
         sendPointerClick('left');
-        lastX = null;
-        lastY = null;
       }
-      // 2. 3 FINGERS: Switch Window (Cmd+Tab / Alt+Tab)
-      else if (isIndexExtended && isMiddleExtended && isRingExtended) {
-        updateHudBadge('🖐️ Switch App (Cmd/Alt+Tab)', '#a855f7');
-        sendPointerGesture('switch_window');
-        lastX = null;
-        lastY = null;
-      }
-      // 3. 2 FINGERS: Scroll Up / Down
-      else if (isIndexExtended && isMiddleExtended && !isRingExtended) {
+      // 2. SCROLL: 2 Fingers (Index + Middle extended, Ring & Pinky closed)
+      else if (isIndexExt && isMiddleExt && !isRingExt && !isPinkyExt) {
         updateHudBadge('✌️ Scrolling', '#38bdf8');
         if (lastY !== null) {
-          const rawDy = (currY - lastY) * 600;
+          const rawDy = (currY - lastY) * 500;
           if (Math.abs(rawDy) > 2) {
             sendPointerScroll(0, Math.round(rawDy));
           }
@@ -1829,35 +1827,45 @@
         lastX = currX;
         lastY = currY;
       }
-      // 4. 1 FINGER (Index): Smooth Pointer Movement
-      else if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+      // 3. SWITCH APP: 3/4 Fingers Wide (With strict 2.5s cooldown)
+      else if (isIndexExt && isMiddleExt && isRingExt && isPinkyExt) {
+        const now = performance.now();
+        if (now - lastGestureTime >= 2500) {
+          updateHudBadge('🖐️ Switch App (Cmd/Alt+Tab)', '#a855f7');
+          sendPointerGesture('switch_window');
+        }
+      }
+      // 4. CLOSED FIST: Tracking Paused
+      else if (!isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt) {
+        updateHudBadge('✊ Tracking Paused', '#f59e0b');
+        lastX = null;
+        lastY = null;
+      }
+      // 5. DEFAULT POINTER: Index Finger Active
+      else if (isIndexExt) {
         updateHudBadge('👆 Pointer Active', '#38bdf8');
         if (lastX !== null && lastY !== null) {
-          const rawDx = (currX - lastX) * 1400;
-          const rawDy = (currY - lastY) * 1400;
+          const rawDx = (currX - lastX) * 1600;
+          const rawDy = (currY - lastY) * 1600;
+
+          // Clamp sudden erratic jumps
+          const clampedDx = Math.max(-120, Math.min(120, rawDx));
+          const clampedDy = Math.max(-120, Math.min(120, rawDy));
 
           // Apply Exponential Moving Average (EMA)
-          smoothDx = alpha * rawDx + (1 - alpha) * smoothDx;
-          smoothDy = alpha * rawDy + (1 - alpha) * smoothDy;
+          smoothDx = alpha * clampedDx + (1 - alpha) * smoothDx;
+          smoothDy = alpha * clampedDy + (1 - alpha) * smoothDy;
 
-          if (Math.abs(smoothDx) > 0.4 || Math.abs(smoothDy) > 0.4) {
+          if (Math.abs(smoothDx) > 0.3 || Math.abs(smoothDy) > 0.3) {
             sendPointerMove(smoothDx, smoothDy);
           }
         }
         lastX = currX;
         lastY = currY;
-      }
-      // 5. FIST / CLOSED HAND: Pause
-      else if (!isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
-        updateHudBadge('✊ Tracking Paused', '#f59e0b');
-        lastX = null;
-        lastY = null;
       } else {
         lastX = null;
         lastY = null;
       }
-
-      ctx.restore();
     }
 
     // Cyber HUD Skeleton Drawing
