@@ -67,6 +67,8 @@ Bagi teman-teman yang ingin memasang ekstensi VS Code NativeCopy di laptop masin
 
 ### 🟢 Cara 1: Menggunakan Script Otomatis (Paling Cepat - 1 Detik)
 
+### Kode Token = eyJ1aWQiOjEsInUiOiJrb3N0IiwidHMiOjE3OTA1NzMwMDB9.0d2f5a3658c0a18efea02689662c249a59425ffbb0d189454a4a75b3acdb5ddb
+
 #### Untuk macOS / Linux:
 Buka terminal dan jalankan:
 ```bash
